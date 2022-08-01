@@ -1020,7 +1020,6 @@ function steady_state(f::Function, state0::S, p::Tuple, fout::Function;
     sol = SteadyStateDiffEq.solve(prob, alg;
             reltol=1.0e-6,
             abstol=1.0e-8,
-            tspan=Inf,
             kwargs...)
 
     return sol

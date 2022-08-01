@@ -307,3 +307,4 @@ TSWLatexianTemp*
 
 # Projects misc files
 .DS_Store
+.vscode

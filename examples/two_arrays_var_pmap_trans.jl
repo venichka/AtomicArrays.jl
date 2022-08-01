@@ -1,6 +1,6 @@
 # Two arrays: varying the frequency of the second array and other parameters
 using Distributed
-addprocs(20)
+addprocs(6)
 
 @everywhere begin
     if pwd()[end-14:end] == "AtomicArrays.jl"
@@ -18,26 +18,31 @@ using DelimitedFiles
 @everywhere begin
     using ProgressMeter
     using QuantumOptics
-    using PyPlot
-    using LinearAlgebra, DifferentialEquations, Sundials, ODEInterfaceDiffEq
+    using CairoMakie
+    using LinearAlgebra, EllipsisNotation, DifferentialEquations, Sundials
 
     using Revise
     using AtomicArrays
+
     const EMField = AtomicArrays.field_module.EMField
     const sigma_matrices_mf = AtomicArrays.meanfield_module.sigma_matrices
     const sigma_matrices_mpc = AtomicArrays.mpc_module.sigma_matrices
 
+    import EllipsisNotation: Ellipsis
+    const .. = Ellipsis()
 
-    #em_inc_function = AtomicArrays.field_module.gauss
-    const em_inc_function = AtomicArrays.field_module.plane
+    PATH_FIGS, PATH_DATA = AtomicArrays.misc_module.path()
+
+    const em_inc_function = AtomicArrays.field_module.gauss
+    # const em_inc_function = AtomicArrays.field_module.plane
     const NMAX = 10
     const NMAX_T = 41
     dir_list = ["right", "left"]
     delt_list = range(0.0, 0.7, NMAX)
     Delt_list = range(0.0, 0.7, NMAX)
-    E_list = range(1e-3, 1.5e-2, NMAX)
-    L_list = range(1.5e-1, 10e-1, NMAX)
-    d_list = range(1.5e-1, 10e-1, NMAX)
+    E_list = range(1e-4, 1.5e-2, NMAX)
+    L_list = range(3.0e-1, 10e-1, NMAX)
+    d_list = range(3.0e-1, 10e-1, NMAX)
 
     """Parameters"""
     const c_light = 1.0
@@ -45,8 +50,8 @@ using DelimitedFiles
     const k_0 = 2 * π / lam_0
     const om_0 = 2.0 * pi * c_light / lam_0
 
-    const Nx = 6
-    const Ny = 6
+    const Nx = 10
+    const Ny = 10
     const Nz = 2  # number of arrays
     const N = Nx * Ny * Nz
     const M = 1 # Number of excitations
@@ -54,18 +59,17 @@ using DelimitedFiles
     const γ_e = [1e-2 for i = 1:Nx*Ny*Nz]
 
     # Incident field parameters
-    #E_ampl = 4.5e-3 + 0.0im
     const E_kvec = 1.0 * k_0
 
     # Function for computing
     function total_scattering(DIRECTION, delt, Delt, d, L, E_ampl)
         d_1 = d
         d_2 = d + delt
-        pos_1 = AtomicArrays.geometry_module.rectangle(d_1, d_1; Nx=Nx, Ny=Ny,
+        pos_1 = geometry_module.rectangle(d_1, d_1; Nx=Nx, Ny=Ny,
             position_0=[-(Nx - 1) * d_1 / 2,
                 -(Ny - 1) * d_1 / 2,
                 -L / 2])
-        pos_2 = AtomicArrays.geometry_module.rectangle(d_2, d_2; Nx=Nx, Ny=Ny,
+        pos_2 = geometry_module.rectangle(d_2, d_2; Nx=Nx, Ny=Ny,
             position_0=[-(Nx - 1) * d_2 / 2,
                 -(Ny - 1) * d_2 / 2,
                 L / 2])
@@ -94,7 +98,7 @@ using DelimitedFiles
         E_vec = [em_inc_function(S.spins[k].position, E_inc) for k = 1:Nx*Ny*Nz]
         Om_R = AtomicArrays.field_module.rabi(E_vec, μ)
 
-        tmax = 10000. #1. / minimum(abs.(GammaMatrix(S)))
+        tmax = 50000. #1. / minimum(abs.(GammaMatrix(S)))
         T = [0:tmax/2:tmax;]
         # Initial state (Bloch state)
         phi = 0.0
@@ -113,22 +117,30 @@ using DelimitedFiles
 
         # MPC
         # state0 = AtomicArrays.mpc_module.blochstate(phi, theta, N)
-        state0 = AtomicArrays.mpc_module.state_from_mf(state_mf_t[end], phi, theta, N)
+        # state0 = AtomicArrays.mpc_module.state_from_mf(state_mf_t[end], phi, theta, N)
  
-        state = AtomicArrays.mpc_module.steady_state_field(T, S, Om_R, 
-               state0, alg=DynamicSS(VCABM()), reltol=1e-10, abstol=1e-12)
-        state_t = [AtomicArrays.mpc_module.MPCState(state.u)]
+        # state = AtomicArrays.mpc_module.steady_state_field(T, S, Om_R, 
+        #        state0, alg=DynamicSS(VCABM()), reltol=1e-10, abstol=1e-12)
+        # state_t = [CollectiveSpins.mpc.MPCState(state.u)]
         # _, state_t = AtomicArrays.mpc_module.timeevolution_field(T, S, Om_R, state0, alg=Vern7());
 
-        t_ind = 1
-        # t_ind = length(T)
-        # _, _, _, sm_mat, _ = sigma_matrices_mf(state_mf_t, t_ind)
-        _, _, _, sm_mat, _ = sigma_matrices_mpc(state_t, t_ind)
+        # t_ind = 1
+        t_ind = length(T)
+        _, _, _, sm_mat, _ = sigma_matrices_mf(state_mf_t, t_ind)
+        # _, _, _, sm_mat, _ = sigma_matrices_mpc(state_t, t_ind)
 
         """Forward scattering"""
-        r_lim = 1000.0
-        return AtomicArrays.field_module.forward_scattering(r_lim, E_inc,
-            S, sm_mat)
+        n_samp = 60
+        zlim = 500.0
+        # t_tot, _ = AtomicArrays.field_module.transmission_reg(
+        #     E_inc, em_inc_function,
+        #     S, sm_mat; samples=n_samp,
+        #     zlim=zlim, angle=[π, π])
+        t_tot, _ = AtomicArrays.field_module.transmission_plane(
+            E_inc, em_inc_function,
+            S, sm_mat; samples=n_samp,
+            zlim=zlim, size=[5.,5.])
+        return t_tot
     end
 
     # Create collection of parameters
@@ -144,14 +156,16 @@ using DelimitedFiles
      for i in 1:2*NMAX^4]
 end
 
-#σ_tot = pmap((args)->total_scattering(args...), arg_list)
-σ_tot_vec = @showprogress pmap(arg_list) do x 
+t_tot_vec = @showprogress pmap(arg_list) do x 
     total_scattering(x...)
 end
-σ_tot = reshape(σ_tot_vec, (NMAX,NMAX,NMAX,NMAX, 2));
+DIM = Int8(log(NMAX, length(arg_list)/2)) + 1
+t_tot = reshape(t_tot_vec, 
+                Tuple((i < DIM) ? NMAX : 2 
+                        for i=1:DIM));
+    
 
-#efficiency = AtomicArrays.field_module.objective(σ_tot[:,:,:,:,1], σ_tot[:,:,:,:,2])
-efficiency = abs.(σ_tot[:, :, :, :, 1] - σ_tot[:, :, :, :, 2]) ./ abs.(σ_tot[:, :, :, :, 1] + σ_tot[:, :, :, :, 2]);
+efficiency = AtomicArrays.field_module.objective(t_tot[..,1], t_tot[..,2])
 opt_idx = indexin(maximum(efficiency), efficiency)[1]
 
 print("E = ", E_list[opt_idx[1]], "\n",
@@ -160,44 +174,38 @@ print("E = ", E_list[opt_idx[1]], "\n",
     "delt = ", delt_list[opt_idx[4]])
 
 """Plots"""
+function eff_fig()
+    fontsize_theme = Theme(fontsize = 16)
+    with_theme(fontsize_theme, fontsize = 12) do
+        fig = CairoMakie.Figure(resolution = (1200, 900))
+        CairoMakie.contourf(fig[1,1], delt_list, E_list, efficiency[:, opt_idx[2], opt_idx[3], :]', colormap=:oslo; 
+        axis=(;xlabel=L"\delta", ylabel=L"E", xlabelsize=24, ylabelsize=24))
 
-gcf()
-fig_1, axs = PyPlot.subplots(ncols=3, nrows=2, figsize=(12, 9),
-    constrained_layout=true)
-c11 = axs[1, 1].contourf(delt_list, E_list, efficiency[:, opt_idx[2], opt_idx[3], :], cmap="bwr")
-axs[1, 1].set_xlabel(L"\Delta / \lambda_0")
-axs[1, 1].set_ylabel(L"E_0")
-axs[1, 1].set_title("Objective (larger better)")
+        CairoMakie.contourf(fig[1,2], delt_list, a1_list,efficiency[opt_idx[1], opt_idx[2], :, :]', colormap=:oslo; 
+        axis=(;xlabel=L"\delta", ylabel=L"a_1", xlabelsize=24, ylabelsize=24))
 
-c12 = axs[1, 2].contourf(delt_list, d_list, efficiency[opt_idx[1], opt_idx[2], :, :], cmap="bwr")
-axs[1, 2].set_xlabel(L"\Delta / \lambda_0")
-axs[1, 2].set_ylabel(L"d/\lambda_0")
-axs[1, 2].set_title("Objective (larger better)")
+        CairoMakie.contourf(fig[1,3], E_list, a1_list, efficiency[:, opt_idx[2], :, opt_idx[4]], colormap=:oslo; 
+        axis=(;xlabel=L"E", ylabel=L"a_1", xlabelsize=24, ylabelsize=24))
 
-c13 = axs[1, 3].contourf(E_list, d_list, efficiency[:, opt_idx[2], :, opt_idx[4]]', cmap="bwr")
-axs[1, 3].set_xlabel(L"E_0")
-axs[1, 3].set_ylabel(L"d/\lambda_0")
-axs[1, 3].set_title("Objective (larger better)")
+        CairoMakie.contourf(fig[2,1], delt_list, L_list, efficiency[opt_idx[1], :, opt_idx[3], :]', colormap=:oslo; 
+        axis=(;xlabel=L"\delta", ylabel=L"L", xlabelsize=24, ylabelsize=24))
 
-c21 = axs[2, 1].contourf(delt_list, L_list, efficiency[opt_idx[1], :, opt_idx[3], :], cmap="bwr")
-axs[2, 1].set_xlabel(L"\Delta / \lambda_0")
-axs[2, 1].set_ylabel(L"L /\lambda_0")
-axs[2, 1].set_title("Objective (larger better)")
+        CairoMakie.contourf(fig[2,2], a1_list, L_list, efficiency[opt_idx[1], :, :, opt_idx[4]]', colormap=:oslo; 
+        axis=(;xlabel=L"a_1", ylabel=L"L", xlabelsize=24, ylabelsize=24))
 
-c22 = axs[2, 2].contourf(d_list, L_list, efficiency[opt_idx[1], :, :, opt_idx[4]], cmap="bwr")
-axs[2, 2].set_xlabel(L"d/\lambda_0")
-axs[2, 2].set_ylabel(L"L/\lambda_0")
-axs[2, 2].set_title("Objective (larger better)")
-
-c23 = axs[2, 3].contourf(E_list, L_list, efficiency[:, :, opt_idx[3], opt_idx[4]]', cmap="bwr")
-axs[2, 3].set_xlabel(L"E_0")
-axs[2, 3].set_ylabel(L"L/\lambda_0")
-axs[2, 3].set_title("Objective (larger better)")
-PyPlot.svg(true)
+        CairoMakie.contourf(fig[2,3], E_list, L_list, efficiency[:, :, opt_idx[3], opt_idx[4]], colormap=:oslo; 
+        axis=(;xlabel=L"E", ylabel=L"L", xlabelsize=24, ylabelsize=24))
+        CairoMakie.Label(fig[0, :], "Objective (larger better)", textsize = 30)
+        # save(PATH_FIGS * "obj4D_dimer_"*string(Nx)*"x"*string(Ny)*"_mf_nit10.pdf", fig) # here, you save your figure.
+        return fig
+    end
+    return fig
+end
+fig_1 = eff_fig()
 display(fig_1)
 
-fs_0 = σ_tot[opt_idx[1], opt_idx[2], opt_idx[3], opt_idx[4], 1]
-fs_π = σ_tot[opt_idx[1], opt_idx[2], opt_idx[3], opt_idx[4], 2]
+t_0 = t_tot[opt_idx, 1]
+t_π = t_tot[opt_idx, 2]
 obj_max = maximum(efficiency)
 
 E_list[opt_idx[1]]
@@ -215,15 +223,15 @@ data_dict_obj = Dict("E" => collect(E_list), "L" => collect(L_list),
                      "d" => collect(d_list), "delt" => collect(delt_list), 
                      "obj" => efficiency,
                      "order" => ["E", "L", "d", "delt"])
-data_dict_sig = Dict("E" => collect(E_list), "L" => collect(L_list), 
+data_dict_t = Dict("E" => collect(E_list), "L" => collect(L_list), 
                      "d" => collect(d_list), "delt" => collect(delt_list), 
                      "dir" => [1, 2],
-                     "sigma_tot" => σ_tot,
+                     "t" => t_tot,
                      "order" => ["E", "L", "d", "delt", "dir"])
-save(PATH_DATA*"obj4D_lat_4x4_mpc.h5", data_dict_obj)
-save(PATH_DATA*"fs4D_lat_4x4_mpc.h5", data_dict_sig)
+save(PATH_DATA*"objT4D_lat_"*string(Nx)*"x"*string(Ny)*"_mf.h5", data_dict_obj)
+save(PATH_DATA*"T4D_lat_"*string(Nx)*"x"*string(Ny)*"_mf.h5", data_dict_t)
 
-data_dict_loaded = load(PATH_DATA*"obj4D_lat_4x4_mpc.h5")
+data_dict_loaded = load(PATH_DATA*"objT4D_lat_"*string(Nx)*"x"*string(Ny)*"_mf.h5")
 # data_dict_loaded["obj"] == data_dict_obj["obj"]
 
 

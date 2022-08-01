@@ -141,7 +141,7 @@ Rabi frequency of atoms interacting with the incident field:
 function rabi(E_vec::Vector, polarisation::Vector)
     μ = polarisation
     n = length(μ)
-    Ω_R = [(μ[i]'*conj(E_vec[i]))/sqrt(sum(μ[i][j]*conj(μ[i][j]) for j=1:3)) for i=1:n]
+    Ω_R = [(conj(μ[i]')*conj(E_vec[i]))/sqrt(sum(μ[i][j]*conj(μ[i][j]) for j=1:3)) for i=1:n]
     return Ω_R
 end
 
@@ -316,17 +316,34 @@ function transmission_reg(E::Field, inc_wave_function::Function,
     E_in2 = 0.0
     E_out2 = 0.0
     r = Vector{Vector{Float64}}(undef, samples)
-    for j in 1:samples
+    for j in 1:samples 
         r_j = zlim * [sin(θ[j])*cos(φ[j]),
                       sin(θ[j])*sin(φ[j]),
                       cos(θ[j]) + L/zlim]
         r[j] = r_j
-        E_in = inc_wave_function(r_j, E)
-        E_out2 += abs(E_in'*
-        total_field(inc_wave_function,r_j, E, S, sigmam)*total_field(inc_wave_function,r_j, E, S, sigmam)'*E_in)
-        E_in2 += abs(E_in'*E_in)^2
+        E_in_j = inc_wave_function(r_j, E)
+        E_in2 += E_in_j'*E_in_j
+        for k in 1:samples
+            r_k = zlim * [sin(θ[k])*cos(φ[k]),
+                          sin(θ[k])*sin(φ[k]),
+                          cos(θ[k]) + L/zlim]
+            E_in_k = inc_wave_function(r_k, E)
+            E_out2 += abs(conj(E_in_j')*
+            (total_field(inc_wave_function, r_j, E, S, sigmam)'*total_field(inc_wave_function, r_k, E, S, sigmam))*conj(E_in_k))
+        end
     end
-    return  [E_out2/E_in2, r]
+    E_in4 = abs(E_in2)^2
+    # for j in 1:samples
+    #     r_j = zlim * [sin(θ[j])*cos(φ[j]),
+    #                   sin(θ[j])*sin(φ[j]),
+    #                   cos(θ[j]) + L/zlim]
+    #     r[j] = r_j
+    #     E_in = inc_wave_function(r_j, E)
+    #     E_out2 += abs(E_in'*
+    #     total_field(inc_wave_function,r_j, E, S, sigmam)*total_field(inc_wave_function,r_j, E, S, sigmam)'*E_in)
+    #     E_in2 += abs(E_in'*E_in)^2
+    # end
+    return  [E_out2/E_in4, r]
 end
 
 
@@ -357,17 +374,34 @@ function transmission_plane(E::Field, inc_wave_function::Function,
     E_in2 = 0.0
     E_out2 = 0.0
     r = Vector{Vector{Float64}}(undef, samples)
-    for j in 1:samples
+    for j in 1:samples 
         r_j = [-0.5*size[1] + size[1]*(j-1)/(samples-1),
                -0.5*size[2] + size[2]*(j-1)/(samples-1),
                zlim + L]
         r[j] = r_j
-        E_in = inc_wave_function(r_j, E)
-        E_out2 += abs(E_in'*
-        total_field(inc_wave_function,r_j, E, S, sigmam)*total_field(inc_wave_function,r_j, E, S, sigmam)'*E_in)
-        E_in2 += abs(E_in'*E_in)^2
+        E_in_j = inc_wave_function(r_j, E)
+        E_in2 += E_in_j'*E_in_j
+        for k in 1:samples
+            r_k = [-0.5*size[1] + size[1]*(k-1)/(samples-1),
+                   -0.5*size[2] + size[2]*(k-1)/(samples-1),
+                   zlim + L]
+            E_in_k = inc_wave_function(r_k, E)
+            E_out2 += abs(conj(E_in_j')*
+            (total_field(inc_wave_function, r_j, E, S, sigmam)'*total_field(inc_wave_function, r_k, E, S, sigmam))*conj(E_in_k))
+        end
     end
-    return  [E_out2/E_in2, r]
+    E_in4 = abs(E_in2)^2
+    # for j in 1:samples, k in 1:samples
+    #     r_j = [-0.5*size[1] + size[1]*(j-1)/(samples-1),
+    #            -0.5*size[2] + size[2]*(j-1)/(samples-1),
+    #            zlim + L]
+    #     r[j] = r_j
+    #     E_in = inc_wave_function(r_j, E)
+    #     E_out2 += abs(conj(E_in')*
+    #     (total_field(inc_wave_function,r_j, E, S, sigmam)'*total_field(inc_wave_function,r_j, E, S, sigmam))*conj(E_in))
+    #     E_in2 += abs(E_in'*E_in)^2
+    # end
+    return  [E_out2/E_in4, r]
 end
 
 

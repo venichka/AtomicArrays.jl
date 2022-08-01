@@ -292,13 +292,13 @@ function vol_scatt()
         algorithm=:absorption, absorption=4f0, colormap=colormap,
         axis=(type=Axis3, title = L"\sigma_0", 
         xlabel=L"L", ylabel=L"a_1", zlabel=L"\delta"),
-        colorrange=colorrange,
+        colorrange=colorrange_1,
         transparency=true)
      ax_2, cplot_2 = volume(fig_Vsc[1, 2], L, a_1, delt, cube_2,
         algorithm=:absorption, absorption=4f0, colormap=colormap,
         axis=(type=Axis3, title = L"\sigma_\pi", 
         xlabel=L"L", ylabel=L"a_1", zlabel=L"\delta"),
-        colorrange=colorrange,
+        colorrange=colorrange_2,
         transparency=true)
 
     # Plot rectangular

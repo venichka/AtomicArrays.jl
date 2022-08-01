@@ -1,6 +1,5 @@
 #  Two arrays: total field dynamics
 
-# using CollectiveSpins
 using QuantumOptics
 using FFTW
 using BenchmarkTools
