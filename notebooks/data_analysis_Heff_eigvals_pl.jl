@@ -28,11 +28,10 @@ end
 # ╔═╡ 060c13ae-9213-4ecc-87b0-a242391e5548
 # ╠═╡ show_logs = false
 begin
-	using CollectiveSpins
 	using QuantumOptics
 	using FFTW
 	using BenchmarkTools, ProgressMeter, Interpolations
-	using PlutoUI, LaTeXStrings, CairoMakie, Plots
+	using PlutoUI, LaTeXStrings, CairoMakie
 	using HDF5, FileIO
 
 	using Revise
@@ -129,6 +128,12 @@ begin
 	omega_int(k_a)
 end
 
+# ╔═╡ 8273995d-ee61-477f-9cf4-284ae2b0cb96
+fig_1 = omega_int(k_a)
+
+# ╔═╡ ca65ec7d-c105-46ce-8fcc-6faeaee9e3e9
+#save(PATH_FIGS * "eff_constants.pdf", fig_1) # here, you save your figure.
+
 # ╔═╡ 33fddd35-bfd0-4fd3-89b8-0f1d1041f337
 md"""
 ## Compute Hamiltonian and its eigenstates
@@ -209,7 +214,7 @@ function eigen_numerical(args)
     return eigenenergies(dense(H)), eigenenergies(dense(H_eff); warning=false)
 end
 
-# ╔═╡ cc56ba20-fdf4-426f-862f-894ec9753521
+# ╔═╡ dbafda8e-4546-46c6-8e2e-6dad701a1daf
 begin
 	E0 = 10.0.^range(-5,-2,NMAX)
 	Delt0_iter = range(0.0, 0.5, NMAX)
@@ -217,14 +222,15 @@ begin
 	function eigenvalues_plot(dir, Δ, d1, d2, L, γ)
 	    y = reduce(vcat,transpose.([eigen_numerical([d1, d2, Δ, L, γ, E0[i], dir])[2] 
 	                    for i = 1:NMAX]))
-	    l = @layout [a b]
-	    p1 = Plots.plot(E0, real(y), lw=0, marker=(3, stroke(0, 0.2, :black, :dot)), 
-	        xlabel = L"$|E_0|$", ylabel = L"$\Re \lambda$")
-	    p2 = Plots.plot(E0, imag(y), lw=0, marker=(3, stroke(0, 0.2, :black, :dot)), 
-	        xlabel = L"$|E_0|$", ylabel = L"$\Im \lambda$")
-	    Plots.plot(p1, p2, layout = l)
-	    Plots.plot!(xscale=:log10)
-	end
+		fig = Figure(resolution=(600,400))
+		ax1, p1 = scatter(fig[1,1], E0, real(y[:,1]), axis=(;title=L"\mathrm{Real } \lambda", xlabel=L"E"))
+		ax2, p2 = scatter(fig[1,2], E0, imag(y[:,1]), axis=(;title=L"\mathrm{Imag } \lambda", xlabel=L"E"))
+		for i in 2:4
+			scatter!(fig[1,1], E0, real(y[:,i]))
+			scatter!(fig[1,2], E0, imag(y[:,i]))
+		end
+		return fig
+	end 
 end
 
 # ╔═╡ 70571b6d-153f-4e63-9041-48baec739395
@@ -248,7 +254,7 @@ $(@bind γ PlutoUI.Slider(gam_iter, default=gam_iter[1]))
 (dir, Δ, d1, d2, L, γ)
 
 # ╔═╡ 14ff182c-3c95-44ab-9b07-2c2f12005daf
-eigenvalues_plot(dir, Δ, d1, d2, L, γ)
+test = eigenvalues_plot(dir, Δ, d1, d2, L, γ)
 
 # ╔═╡ Cell order:
 # ╟─0b04054e-ee1d-49fe-93f8-116182c326b1
@@ -259,9 +265,11 @@ eigenvalues_plot(dir, Δ, d1, d2, L, γ)
 # ╠═8d355c8d-3ba8-47e1-afb5-e67163b4076c
 # ╠═c11bed04-fc09-4678-97d2-48d9ab5a5eee
 # ╠═7b826dbe-2305-461c-9d89-e9e3fef0410a
+# ╠═8273995d-ee61-477f-9cf4-284ae2b0cb96
+# ╠═ca65ec7d-c105-46ce-8fcc-6faeaee9e3e9
 # ╟─33fddd35-bfd0-4fd3-89b8-0f1d1041f337
 # ╟─2a635da4-ad17-42a6-8368-7a938960d6df
-# ╟─cc56ba20-fdf4-426f-862f-894ec9753521
+# ╠═dbafda8e-4546-46c6-8e2e-6dad701a1daf
 # ╟─70571b6d-153f-4e63-9041-48baec739395
 # ╠═1a72eef8-ef11-4230-8d04-ec4830cbc724
 # ╠═14ff182c-3c95-44ab-9b07-2c2f12005daf

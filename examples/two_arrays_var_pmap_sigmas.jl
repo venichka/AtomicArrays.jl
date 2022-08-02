@@ -50,8 +50,8 @@ using DelimitedFiles
     const k_0 = 2 * π / lam_0
     const om_0 = 2.0 * pi * c_light / lam_0
 
-    const Nx = 10
-    const Ny = 10
+    const Nx = 4
+    const Ny = 4
     const Nz = 2  # number of arrays
     const N = Nx * Ny * Nz
     const M = 1 # Number of excitations
@@ -147,10 +147,11 @@ end
 sigmas_vec = @showprogress pmap(arg_list) do x 
     total_scattering(x...)
 end
+sigmas_mat = mapreduce(permutedims, vcat, sigmas_vec) # convert to matrix
 DIM = Int8(log(NMAX, length(arg_list)/2)) + 1
-sigmas = reshape(sigmas_vec, 
-                Tuple((i < DIM) ? NMAX : 2 
-                        for i=1:DIM));
+sigmas = reshape(sigmas_mat, 
+                Tuple(push!([(i < DIM) ? NMAX : 2 
+                        for i=1:DIM], N)));
     
 
 """Writing DATA"""
@@ -167,7 +168,7 @@ data_dict_sig = Dict("E" => collect(E_list), "L" => collect(L_list),
 save(PATH_DATA*"sig4D_lat_"*string(Nx)*"x"*string(Ny)*"_mf.h5", data_dict_sig)
 
 data_dict_loaded = load(PATH_DATA*"sig4D_lat_"*string(Nx)*"x"*string(Ny)*"_mf.h5")
-# data_dict_loaded["obj"] == data_dict_obj["obj"]
+# data_dict_loaded["sigma_re"] == data_dict_sig["sigma_re"]
 
 
 

@@ -1,6 +1,6 @@
 # Two arrays: varying the frequency of the second array and other parameters
 using Distributed
-addprocs(20)
+addprocs(6)
 
 @everywhere begin
     if pwd()[end-14:end] == "AtomicArrays.jl"
@@ -19,7 +19,7 @@ using DelimitedFiles
     using ProgressMeter
     using QuantumOptics
     using PyPlot
-    using LinearAlgebra, DifferentialEquations, Sundials, ODEInterfaceDiffEq
+    using LinearAlgebra, EllipsisNotation, DifferentialEquations, Sundials
 
     using Revise
     using AtomicArrays
@@ -27,6 +27,10 @@ using DelimitedFiles
     const sigma_matrices_mf = AtomicArrays.meanfield_module.sigma_matrices
     const sigma_matrices_mpc = AtomicArrays.mpc_module.sigma_matrices
 
+    import EllipsisNotation: Ellipsis
+    const .. = Ellipsis()
+
+    const PATH_FIGS, PATH_DATA = AtomicArrays.misc_module.path()
 
     #em_inc_function = AtomicArrays.field_module.gauss
     const em_inc_function = AtomicArrays.field_module.plane
@@ -45,8 +49,8 @@ using DelimitedFiles
     const k_0 = 2 * π / lam_0
     const om_0 = 2.0 * pi * c_light / lam_0
 
-    const Nx = 6
-    const Ny = 6
+    const Nx = 4
+    const Ny = 4
     const Nz = 2  # number of arrays
     const N = Nx * Ny * Nz
     const M = 1 # Number of excitations
@@ -113,17 +117,17 @@ using DelimitedFiles
 
         # MPC
         # state0 = AtomicArrays.mpc_module.blochstate(phi, theta, N)
-        state0 = AtomicArrays.mpc_module.state_from_mf(state_mf_t[end], phi, theta, N)
+        # state0 = AtomicArrays.mpc_module.state_from_mf(state_mf_t[end], phi, theta, N)
  
-        state = AtomicArrays.mpc_module.steady_state_field(T, S, Om_R, 
-               state0, alg=DynamicSS(VCABM()), reltol=1e-10, abstol=1e-12)
-        state_t = [AtomicArrays.mpc_module.MPCState(state.u)]
+        # state = AtomicArrays.mpc_module.steady_state_field(T, S, Om_R, 
+        #        state0, alg=DynamicSS(VCABM()), reltol=1e-10, abstol=1e-12)
+        # state_t = [AtomicArrays.mpc_module.MPCState(state.u)]
         # _, state_t = AtomicArrays.mpc_module.timeevolution_field(T, S, Om_R, state0, alg=Vern7());
 
-        t_ind = 1
-        # t_ind = length(T)
-        # _, _, _, sm_mat, _ = sigma_matrices_mf(state_mf_t, t_ind)
-        _, _, _, sm_mat, _ = sigma_matrices_mpc(state_t, t_ind)
+        # t_ind = 1
+        t_ind = length(T)
+        _, _, _, sm_mat, _ = sigma_matrices_mf(state_mf_t, t_ind)
+        # _, _, _, sm_mat, _ = sigma_matrices_mpc(state_t, t_ind)
 
         """Forward scattering"""
         r_lim = 1000.0
@@ -148,10 +152,13 @@ end
 σ_tot_vec = @showprogress pmap(arg_list) do x 
     total_scattering(x...)
 end
-σ_tot = reshape(σ_tot_vec, (NMAX,NMAX,NMAX,NMAX, 2));
+DIM = Int8(log(NMAX, length(arg_list)/2)) + 1
+σ_tot = reshape(σ_tot_vec, 
+                Tuple((i < DIM) ? NMAX : 2 
+                        for i=1:DIM));
 
-#efficiency = AtomicArrays.field_module.objective(σ_tot[:,:,:,:,1], σ_tot[:,:,:,:,2])
-efficiency = abs.(σ_tot[:, :, :, :, 1] - σ_tot[:, :, :, :, 2]) ./ abs.(σ_tot[:, :, :, :, 1] + σ_tot[:, :, :, :, 2]);
+#efficiency = AtomicArrays.field_module.objective(σ_tot[..,1], σ_tot[..,2])
+efficiency = abs.(σ_tot[.., 1] - σ_tot[.., 2]) ./ abs.(σ_tot[.., 1] + σ_tot[.., 2]);
 opt_idx = indexin(maximum(efficiency), efficiency)[1]
 
 print("E = ", E_list[opt_idx[1]], "\n",
@@ -196,8 +203,8 @@ axs[2, 3].set_title("Objective (larger better)")
 PyPlot.svg(true)
 display(fig_1)
 
-fs_0 = σ_tot[opt_idx[1], opt_idx[2], opt_idx[3], opt_idx[4], 1]
-fs_π = σ_tot[opt_idx[1], opt_idx[2], opt_idx[3], opt_idx[4], 2]
+fs_0 = σ_tot[opt_idx, 1]
+fs_π = σ_tot[opt_idx, 2]
 obj_max = maximum(efficiency)
 
 E_list[opt_idx[1]]
@@ -209,7 +216,7 @@ delt_list[opt_idx[4]]
 
 using HDF5, FileIO
 
-#fig_1.savefig(PATH_FIGS*"obj4D_lattice_4x4_mpc_nit10.png", dpi=300)
+fig_1.savefig(PATH_FIGS*"obj4D_lattice_4x4_mf_nit10.png", dpi=300)
 
 data_dict_obj = Dict("E" => collect(E_list), "L" => collect(L_list), 
                      "d" => collect(d_list), "delt" => collect(delt_list), 
