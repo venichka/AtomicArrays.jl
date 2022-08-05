@@ -32,14 +32,16 @@ using DelimitedFiles
 
     const PATH_FIGS, PATH_DATA = AtomicArrays.misc_module.path()
 
+    const EQ_TYPE = "mf"
+
     #em_inc_function = AtomicArrays.field_module.gauss
     const em_inc_function = AtomicArrays.field_module.plane
     const NMAX = 10
     const NMAX_T = 41
     dir_list = ["right", "left"]
     delt_list = range(0.0, 0.7, NMAX)
-    Delt_list = range(0.0, 0.7, NMAX)
-    E_list = range(1e-3, 1.5e-2, NMAX)
+    Delt_list = range(0.0, 0.2, NMAX)
+    E_list = range(5e-3, 2.5e-2, NMAX)
     L_list = range(1.5e-1, 10e-1, NMAX)
     d_list = range(1.5e-1, 10e-1, NMAX)
 
@@ -49,8 +51,8 @@ using DelimitedFiles
     const k_0 = 2 * π / lam_0
     const om_0 = 2.0 * pi * c_light / lam_0
 
-    const Nx = 4
-    const Ny = 4
+    const Nx = 10
+    const Ny = 10
     const Nz = 2  # number of arrays
     const N = Nx * Ny * Nz
     const M = 1 # Number of excitations
@@ -58,7 +60,6 @@ using DelimitedFiles
     const γ_e = [1e-2 for i = 1:Nx*Ny*Nz]
 
     # Incident field parameters
-    #E_ampl = 4.5e-3 + 0.0im
     const E_kvec = 1.0 * k_0
 
     # Function for computing
@@ -75,7 +76,7 @@ using DelimitedFiles
                 L / 2])
         pos = vcat(pos_1, pos_2)
 
-        δ_S = [(ind < Nx * Ny) ? 0.0 : Delt for ind = 1:N]
+        δ_S = [(ind < Nx * Ny) ? -0.5*Delt : 0.5*Delt for ind = 1:N]
 
         S = SpinCollection(pos, μ; gammas=γ_e, deltas=δ_S)
 
@@ -98,36 +99,36 @@ using DelimitedFiles
         E_vec = [em_inc_function(S.spins[k].position, E_inc) for k = 1:Nx*Ny*Nz]
         Om_R = AtomicArrays.field_module.rabi(E_vec, μ)
 
-        tmax = 10000. #1. / minimum(abs.(GammaMatrix(S)))
+        tmax = 50000. #1. / minimum(abs.(GammaMatrix(S)))
         T = [0:tmax/2:tmax;]
         # Initial state (Bloch state)
         phi = 0.0
         theta = pi / 1.0
         # Meanfield
         state0_mf = AtomicArrays.meanfield_module.blochstate(phi, theta, N)
-        # state = AtomicArrays.meanfield_module.steady_state_field(T, S, Om_R, 
-                # state0, alg=DynamicSS(AutoVern7(RadauIIA5(), nonstifftol=9//10)))
         _, state_mf_t = AtomicArrays.meanfield_module.timeevolution_field(T, S,
            Om_R,
            state0_mf, alg=VCABM(), reltol=1e-10, abstol=1e-12)
-        #state0 = state_t_0[end]
-        #state = AtomicArrays.meanfield_module.steady_state_field(T, S, Om_R, 
-        #        state0, alg=SSRootfind())
-        # state_t = [AtomicArrays.meanfield_module.ProductState(state.u)]
+        # state = AtomicArrays.meanfield_module.steady_state_field(T, S, Om_R, 
+        #     state0_mf, alg=SSRootfind(), reltol=1e-10, abstol=1e-12)
+        # state_mf_t = [AtomicArrays.meanfield_module.ProductState(state.u)]
 
-        # MPC
-        # state0 = AtomicArrays.mpc_module.blochstate(phi, theta, N)
-        # state0 = AtomicArrays.mpc_module.state_from_mf(state_mf_t[end], phi, theta, N)
- 
-        # state = AtomicArrays.mpc_module.steady_state_field(T, S, Om_R, 
-        #        state0, alg=DynamicSS(VCABM()), reltol=1e-10, abstol=1e-12)
-        # state_t = [AtomicArrays.mpc_module.MPCState(state.u)]
-        # _, state_t = AtomicArrays.mpc_module.timeevolution_field(T, S, Om_R, state0, alg=Vern7());
+        if EQ_TYPE == "mpc"
+            state0 = AtomicArrays.mpc_module.state_from_mf(state_mf_t[end], phi, theta, N)
+    
+            # state = AtomicArrays.mpc_module.steady_state_field(T, S, Om_R, 
+            #     state0, alg=SSRootfind(), reltol=1e-10, abstol=1e-12)
+            # state_t = [AtomicArrays.mpc_module.MPCState(state.u)]
 
-        # t_ind = 1
-        t_ind = length(T)
-        _, _, _, sm_mat, _ = sigma_matrices_mf(state_mf_t, t_ind)
-        # _, _, _, sm_mat, _ = sigma_matrices_mpc(state_t, t_ind)
+            _, state_t = AtomicArrays.mpc_module.timeevolution_field(T, S, Om_R, state0, alg=VCABM(), reltol=1e-10, abstol=1e-12);
+
+            # t_ind = 1
+            t_ind = length(T)
+            _, _, _, sm_mat, _ = sigma_matrices_mpc(state_t, t_ind)
+        elseif EQ_TYPE == "mf"
+            t_ind = length(T)
+            _, _, _, sm_mat, _ = sigma_matrices_mf(state_mf_t, t_ind)
+        end
 
         """Forward scattering"""
         r_lim = 1000.0
@@ -139,8 +140,8 @@ using DelimitedFiles
     arg_list = [
         [
             dir_list[(i-1) ÷ NMAX^4 + 1],
-            delt_list[(i-1) ÷ NMAX^3 % NMAX + 1],
-            Delt_list[1],
+            delt_list[1],
+            Delt_list[(i-1) ÷ NMAX^3 % NMAX + 1],
             d_list[(i-1) ÷ NMAX^2 % NMAX + 1],
             L_list[(i-1) ÷ NMAX % NMAX + 1],
             E_list[(i-1) % NMAX + 1]
@@ -164,19 +165,19 @@ opt_idx = indexin(maximum(efficiency), efficiency)[1]
 print("E = ", E_list[opt_idx[1]], "\n",
     "L = ", L_list[opt_idx[2]], "\n",
     "d = ", d_list[opt_idx[3]], "\n",
-    "delt = ", delt_list[opt_idx[4]])
+    "Delt = ", Delt_list[opt_idx[4]])
 
 """Plots"""
 
 gcf()
 fig_1, axs = PyPlot.subplots(ncols=3, nrows=2, figsize=(12, 9),
     constrained_layout=true)
-c11 = axs[1, 1].contourf(delt_list, E_list, efficiency[:, opt_idx[2], opt_idx[3], :], cmap="bwr")
+c11 = axs[1, 1].contourf(Delt_list, E_list, efficiency[:, opt_idx[2], opt_idx[3], :], cmap="bwr")
 axs[1, 1].set_xlabel(L"\Delta / \lambda_0")
 axs[1, 1].set_ylabel(L"E_0")
 axs[1, 1].set_title("Objective (larger better)")
 
-c12 = axs[1, 2].contourf(delt_list, d_list, efficiency[opt_idx[1], opt_idx[2], :, :], cmap="bwr")
+c12 = axs[1, 2].contourf(Delt_list, d_list, efficiency[opt_idx[1], opt_idx[2], :, :], cmap="bwr")
 axs[1, 2].set_xlabel(L"\Delta / \lambda_0")
 axs[1, 2].set_ylabel(L"d/\lambda_0")
 axs[1, 2].set_title("Objective (larger better)")
@@ -186,7 +187,7 @@ axs[1, 3].set_xlabel(L"E_0")
 axs[1, 3].set_ylabel(L"d/\lambda_0")
 axs[1, 3].set_title("Objective (larger better)")
 
-c21 = axs[2, 1].contourf(delt_list, L_list, efficiency[opt_idx[1], :, opt_idx[3], :], cmap="bwr")
+c21 = axs[2, 1].contourf(Delt_list, L_list, efficiency[opt_idx[1], :, opt_idx[3], :], cmap="bwr")
 axs[2, 1].set_xlabel(L"\Delta / \lambda_0")
 axs[2, 1].set_ylabel(L"L /\lambda_0")
 axs[2, 1].set_title("Objective (larger better)")
@@ -210,28 +211,30 @@ obj_max = maximum(efficiency)
 E_list[opt_idx[1]]
 L_list[opt_idx[2]]
 d_list[opt_idx[3]]
-delt_list[opt_idx[4]]
+Delt_list[opt_idx[4]]
 
 """Writing DATA"""
 
 using HDF5, FileIO
 
-fig_1.savefig(PATH_FIGS*"obj4D_lattice_4x4_mf_nit10.png", dpi=300)
+# fig_1.savefig(PATH_FIGS*"obj4D_lattice_4x4_mf_nit10.png", dpi=300)
 
 data_dict_obj = Dict("E" => collect(E_list), "L" => collect(L_list), 
-                     "d" => collect(d_list), "delt" => collect(delt_list), 
+                     "d" => collect(d_list), "delt" => collect(Delt_list), 
                      "obj" => efficiency,
                      "order" => ["E", "L", "d", "delt"])
-data_dict_sig = Dict("E" => collect(E_list), "L" => collect(L_list), 
-                     "d" => collect(d_list), "delt" => collect(delt_list), 
+data_dict_fs = Dict("E" => collect(E_list), "L" => collect(L_list), 
+                     "d" => collect(d_list), "delt" => collect(Delt_list), 
                      "dir" => [1, 2],
                      "sigma_tot" => σ_tot,
                      "order" => ["E", "L", "d", "delt", "dir"])
-save(PATH_DATA*"obj4D_lat_4x4_mpc.h5", data_dict_obj)
-save(PATH_DATA*"fs4D_lat_4x4_mpc.h5", data_dict_sig)
 
-data_dict_loaded = load(PATH_DATA*"obj4D_lat_4x4_mpc.h5")
-# data_dict_loaded["obj"] == data_dict_obj["obj"]
+NAME_PART = string(Nx)*"x"*string(Ny)*"_"*EQ_TYPE*".h5"
+save(PATH_DATA*"obj4D_freq_"*NAME_PART, data_dict_obj)
+save(PATH_DATA*"fs4D_freq_"*NAME_PART, data_dict_fs)
+
+data_dict_loaded = load(PATH_DATA*"obj4D_freq_"*NAME_PART)
+data_dict_loaded["obj"] == data_dict_obj["obj"]
 
 
 

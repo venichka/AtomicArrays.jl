@@ -31,7 +31,9 @@ using DelimitedFiles
     import EllipsisNotation: Ellipsis
     const .. = Ellipsis()
 
-    PATH_FIGS, PATH_DATA = AtomicArrays.misc_module.path()
+    const PATH_FIGS, PATH_DATA = AtomicArrays.misc_module.path()
+
+    const EQ_TYPE = "mf"
 
     # const em_inc_function = AtomicArrays.field_module.gauss
     const em_inc_function = AtomicArrays.field_module.plane
@@ -39,10 +41,10 @@ using DelimitedFiles
     const NMAX_T = 41
     dir_list = ["right", "left"]
     delt_list = range(0.0, 0.7, NMAX)
-    Delt_list = range(0.0, 0.7, NMAX)
-    E_list = range(1e-4, 1.5e-2, NMAX)
-    L_list = range(3.0e-1, 10e-1, NMAX)
-    d_list = range(3.0e-1, 10e-1, NMAX)
+    Delt_list = range(0.0, 0.2, NMAX)
+    E_list = range(5e-3, 2.5e-2, NMAX)
+    L_list = range(1.5e-1, 10e-1, NMAX)
+    d_list = range(1.5e-1, 10e-1, NMAX)
 
     """Parameters"""
     const c_light = 1.0
@@ -50,8 +52,8 @@ using DelimitedFiles
     const k_0 = 2 * π / lam_0
     const om_0 = 2.0 * pi * c_light / lam_0
 
-    const Nx = 4
-    const Ny = 4
+    const Nx =10 
+    const Ny = 10
     const Nz = 2  # number of arrays
     const N = Nx * Ny * Nz
     const M = 1 # Number of excitations
@@ -75,7 +77,7 @@ using DelimitedFiles
                 L / 2])
         pos = vcat(pos_1, pos_2)
 
-        δ_S = [(ind < Nx * Ny) ? 0.0 : Delt for ind = 1:N]
+        δ_S = [(ind < Nx * Ny) ? -0.5*Delt : 0.5*Delt for ind = 1:N]
 
         S = SpinCollection(pos, μ; gammas=γ_e, deltas=δ_S)
 
@@ -105,29 +107,27 @@ using DelimitedFiles
         theta = pi / 1.0
         # Meanfield
         state0_mf = AtomicArrays.meanfield_module.blochstate(phi, theta, N)
-        # state = AtomicArrays.meanfield_module.steady_state_field(T, S, Om_R, 
-                # state0, alg=DynamicSS(AutoVern7(RadauIIA5(), nonstifftol=9//10)))
         _, state_mf_t = AtomicArrays.meanfield_module.timeevolution_field(T, S,
            Om_R,
            state0_mf, alg=VCABM(), reltol=1e-10, abstol=1e-12)
-        #state0 = state_t_0[end]
-        #state = AtomicArrays.meanfield_module.steady_state_field(T, S, Om_R, 
-        #        state0, alg=SSRootfind())
-        # state_t = [AtomicArrays.meanfield_module.ProductState(state.u)]
 
-        # MPC
-        # state0 = AtomicArrays.mpc_module.blochstate(phi, theta, N)
-        # state0 = AtomicArrays.mpc_module.state_from_mf(state_mf_t[end], phi, theta, N)
- 
-        # state = AtomicArrays.mpc_module.steady_state_field(T, S, Om_R, 
-        #        state0, alg=DynamicSS(VCABM()), reltol=1e-10, abstol=1e-12)
-        # state_t = [CollectiveSpins.mpc.MPCState(state.u)]
-        # _, state_t = AtomicArrays.mpc_module.timeevolution_field(T, S, Om_R, state0, alg=Vern7());
+        if EQ_TYPE == "mpc"
+            state0 = AtomicArrays.mpc_module.state_from_mf(state_mf_t[end], phi, theta, N)
+    
+            # state = AtomicArrays.mpc_module.steady_state_field(T, S, Om_R, 
+            #     state0, alg=DynamicSS(VCABM()), reltol=1e-10, abstol=1e-12)
+            # state_t = [AtomicArrays.mpc_module.MPCState(state.u)]
 
-        # t_ind = 1
-        t_ind = length(T)
-        _, _, _, sm_mat, _ = sigma_matrices_mf(state_mf_t, t_ind)
-        # _, _, _, sm_mat, _ = sigma_matrices_mpc(state_t, t_ind)
+            _, state_t = AtomicArrays.mpc_module.timeevolution_field(T, S, Om_R, state0, alg=VCABM(), reltol=1e-10, abstol=1e-12);
+
+            # t_ind = 1
+            t_ind = length(T)
+            _, _, _, sm_mat, _ = sigma_matrices_mpc(state_t, t_ind)
+        elseif EQ_TYPE == "mf"
+            t_ind = length(T)
+            _, _, _, sm_mat, _ = sigma_matrices_mf(state_mf_t, t_ind)
+        end
+
         return sm_mat
     end
 
@@ -135,8 +135,8 @@ using DelimitedFiles
     arg_list = [
         [
             dir_list[(i-1) ÷ NMAX^4 + 1],
-            delt_list[(i-1) ÷ NMAX^3 % NMAX + 1],
-            Delt_list[1],
+            delt_list[1],
+            Delt_list[(i-1) ÷ NMAX^3 % NMAX + 1],
             d_list[(i-1) ÷ NMAX^2 % NMAX + 1],
             L_list[(i-1) ÷ NMAX % NMAX + 1],
             E_list[(i-1) % NMAX + 1]
@@ -147,7 +147,7 @@ end
 sigmas_vec = @showprogress pmap(arg_list) do x 
     total_scattering(x...)
 end
-sigmas_mat = mapreduce(permutedims, vcat, sigmas_vec) # convert to matrix
+sigmas_mat = mapreduce(permutedims, vcat, sigmas_vec); # convert to matrix
 DIM = Int8(log(NMAX, length(arg_list)/2)) + 1
 sigmas = reshape(sigmas_mat, 
                 Tuple(push!([(i < DIM) ? NMAX : 2 
@@ -160,15 +160,17 @@ using HDF5, FileIO
 
 
 data_dict_sig = Dict("E" => collect(E_list), "L" => collect(L_list), 
-                     "d" => collect(d_list), "delt" => collect(delt_list), 
+                     "d" => collect(d_list), "delt" => collect(Delt_list), 
                      "dir" => [1, 2],
                      "sigma_re" => real(sigmas),
                      "sigma_im" => imag(sigmas),
                      "order" => ["E", "L", "d", "delt", "dir"])
-save(PATH_DATA*"sig4D_lat_"*string(Nx)*"x"*string(Ny)*"_mf.h5", data_dict_sig)
 
-data_dict_loaded = load(PATH_DATA*"sig4D_lat_"*string(Nx)*"x"*string(Ny)*"_mf.h5")
-# data_dict_loaded["sigma_re"] == data_dict_sig["sigma_re"]
+NAME_PART = string(Nx)*"x"*string(Ny)*"_"*EQ_TYPE*".h5"
+save(PATH_DATA*"sig4D_freq_"*NAME_PART, data_dict_sig)
+
+data_dict_loaded = load(PATH_DATA*"sig4D_freq_"*NAME_PART)
+data_dict_loaded["sigma_re"] == data_dict_sig["sigma_re"]
 
 
 

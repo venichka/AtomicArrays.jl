@@ -406,7 +406,7 @@ function timeevolution(T, S::SpinCollection, state0::MPCState; fout=nothing, kwa
         fout_ = fout
     end
 
-    return integrate(T, f, state0, fout_; kwargs...)
+    return integrate_base(T, f, state0, fout_; kwargs...)
 end
 
 function axisangle2rotmatrix(axis::Vector{T}, angle::Real) where T<:Real
@@ -582,7 +582,7 @@ function squeeze_sx(χT::Real, state0::MPCState)
     end
 
     fout_(t, state::MPCState) = deepcopy(state)
-    time_out, state_out = integrate(T, f, state0, fout_)
+    time_out, state_out = integrate_base(T, f, state0, fout_)
 
     return state_out[end]
 end
