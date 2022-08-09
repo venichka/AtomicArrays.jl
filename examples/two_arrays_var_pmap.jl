@@ -1,6 +1,6 @@
 # Two arrays: varying the frequency of the second array and other parameters
 using Distributed
-addprocs(6)
+addprocs(20)
 
 @everywhere begin
     if pwd()[end-14:end] == "AtomicArrays.jl"
@@ -29,10 +29,11 @@ using DelimitedFiles
 
     import EllipsisNotation: Ellipsis
     const .. = Ellipsis()
+    gcf()
 
     const PATH_FIGS, PATH_DATA = AtomicArrays.misc_module.path()
 
-    const EQ_TYPE = "mf"
+    const EQ_TYPE = "mpc"
 
     #em_inc_function = AtomicArrays.field_module.gauss
     const em_inc_function = AtomicArrays.field_module.plane
@@ -42,8 +43,8 @@ using DelimitedFiles
     delt_list = range(0.0, 0.7, NMAX)
     Delt_list = range(0.0, 0.2, NMAX)
     E_list = range(5e-3, 2.5e-2, NMAX)
-    L_list = range(1.5e-1, 10e-1, NMAX)
-    d_list = range(1.5e-1, 10e-1, NMAX)
+    L_list = range(1.0e-1, 10e-1, NMAX)
+    d_list = range(1.0e-1, 10e-1, NMAX)
 
     """Parameters"""
     const c_light = 1.0
@@ -51,8 +52,8 @@ using DelimitedFiles
     const k_0 = 2 * π / lam_0
     const om_0 = 2.0 * pi * c_light / lam_0
 
-    const Nx = 10
-    const Ny = 10
+    const Nx = 2
+    const Ny = 2
     const Nz = 2  # number of arrays
     const N = Nx * Ny * Nz
     const M = 1 # Number of excitations
@@ -99,7 +100,7 @@ using DelimitedFiles
         E_vec = [em_inc_function(S.spins[k].position, E_inc) for k = 1:Nx*Ny*Nz]
         Om_R = AtomicArrays.field_module.rabi(E_vec, μ)
 
-        tmax = 50000. #1. / minimum(abs.(GammaMatrix(S)))
+        tmax = 2e6 #1. / minimum(abs.(GammaMatrix(S)))
         T = [0:tmax/2:tmax;]
         # Initial state (Bloch state)
         phi = 0.0
@@ -108,7 +109,7 @@ using DelimitedFiles
         state0_mf = AtomicArrays.meanfield_module.blochstate(phi, theta, N)
         _, state_mf_t = AtomicArrays.meanfield_module.timeevolution_field(T, S,
            Om_R,
-           state0_mf, alg=VCABM(), reltol=1e-10, abstol=1e-12)
+           state0_mf, alg=VCABM(), reltol=1e-10, abstol=1e-12, maxiters=1e9)
         # state = AtomicArrays.meanfield_module.steady_state_field(T, S, Om_R, 
         #     state0_mf, alg=SSRootfind(), reltol=1e-10, abstol=1e-12)
         # state_mf_t = [AtomicArrays.meanfield_module.ProductState(state.u)]
@@ -120,7 +121,9 @@ using DelimitedFiles
             #     state0, alg=SSRootfind(), reltol=1e-10, abstol=1e-12)
             # state_t = [AtomicArrays.mpc_module.MPCState(state.u)]
 
-            _, state_t = AtomicArrays.mpc_module.timeevolution_field(T, S, Om_R, state0, alg=VCABM(), reltol=1e-10, abstol=1e-12);
+            _, state_t = AtomicArrays.mpc_module.timeevolution_field(T, S,
+             Om_R, state0, alg=AutoVern7(Rodas4P()), 
+             reltol=1e-10, abstol=1e-12, maxiters=1e10);
 
             # t_ind = 1
             t_ind = length(T)
@@ -132,8 +135,9 @@ using DelimitedFiles
 
         """Forward scattering"""
         r_lim = 1000.0
-        return AtomicArrays.field_module.forward_scattering(r_lim, E_inc,
+        scatt_cs = AtomicArrays.field_module.forward_scattering(r_lim, E_inc,
             S, sm_mat)
+        return [scatt_cs, sm_mat]
     end
 
     # Create collection of parameters
@@ -149,14 +153,26 @@ using DelimitedFiles
      for i in 1:2*NMAX^4]
 end
 
-#σ_tot = pmap((args)->total_scattering(args...), arg_list)
-σ_tot_vec = @showprogress pmap(arg_list) do x 
+results_vec = @showprogress pmap(arg_list) do x 
     total_scattering(x...)
+end;
+
+begin
+    # Separate results
+    results_mat = mapreduce(permutedims, vcat, results_vec)
+    σ_tot_vec = results_mat[:,1]
+    sm_vec = mapreduce(permutedims, vcat, results_mat[:,2])
+
+    # Reshape results
+    DIM = Int8(log(NMAX, length(arg_list)/2)) + 1
+    σ_tot = reshape(σ_tot_vec, 
+                    Tuple((i < DIM) ? NMAX : 2 
+                            for i=1:DIM));
+    sigmas = reshape(sm_vec, 
+                    Tuple(push!([(i < DIM) ? NMAX : 2 
+                            for i=1:DIM], N)));
+    "Reshaping done"
 end
-DIM = Int8(log(NMAX, length(arg_list)/2)) + 1
-σ_tot = reshape(σ_tot_vec, 
-                Tuple((i < DIM) ? NMAX : 2 
-                        for i=1:DIM));
 
 #efficiency = AtomicArrays.field_module.objective(σ_tot[..,1], σ_tot[..,2])
 efficiency = abs.(σ_tot[.., 1] - σ_tot[.., 2]) ./ abs.(σ_tot[.., 1] + σ_tot[.., 2]);
@@ -169,40 +185,41 @@ print("E = ", E_list[opt_idx[1]], "\n",
 
 """Plots"""
 
-gcf()
-fig_1, axs = PyPlot.subplots(ncols=3, nrows=2, figsize=(12, 9),
-    constrained_layout=true)
-c11 = axs[1, 1].contourf(Delt_list, E_list, efficiency[:, opt_idx[2], opt_idx[3], :], cmap="bwr")
-axs[1, 1].set_xlabel(L"\Delta / \lambda_0")
-axs[1, 1].set_ylabel(L"E_0")
-axs[1, 1].set_title("Objective (larger better)")
+begin
+    fig_1, axs = PyPlot.subplots(ncols=3, nrows=2, figsize=(12, 9),
+        constrained_layout=true)
+    c11 = axs[1, 1].contourf(Delt_list, E_list, efficiency[:, opt_idx[2], opt_idx[3], :], cmap="bwr")
+    axs[1, 1].set_xlabel(L"\Delta / \lambda_0")
+    axs[1, 1].set_ylabel(L"E_0")
+    axs[1, 1].set_title("Objective (larger better)")
 
-c12 = axs[1, 2].contourf(Delt_list, d_list, efficiency[opt_idx[1], opt_idx[2], :, :], cmap="bwr")
-axs[1, 2].set_xlabel(L"\Delta / \lambda_0")
-axs[1, 2].set_ylabel(L"d/\lambda_0")
-axs[1, 2].set_title("Objective (larger better)")
+    c12 = axs[1, 2].contourf(Delt_list, d_list, efficiency[opt_idx[1], opt_idx[2], :, :], cmap="bwr")
+    axs[1, 2].set_xlabel(L"\Delta / \lambda_0")
+    axs[1, 2].set_ylabel(L"d/\lambda_0")
+    axs[1, 2].set_title("Objective (larger better)")
 
-c13 = axs[1, 3].contourf(E_list, d_list, efficiency[:, opt_idx[2], :, opt_idx[4]]', cmap="bwr")
-axs[1, 3].set_xlabel(L"E_0")
-axs[1, 3].set_ylabel(L"d/\lambda_0")
-axs[1, 3].set_title("Objective (larger better)")
+    c13 = axs[1, 3].contourf(E_list, d_list, efficiency[:, opt_idx[2], :, opt_idx[4]]', cmap="bwr")
+    axs[1, 3].set_xlabel(L"E_0")
+    axs[1, 3].set_ylabel(L"d/\lambda_0")
+    axs[1, 3].set_title("Objective (larger better)")
 
-c21 = axs[2, 1].contourf(Delt_list, L_list, efficiency[opt_idx[1], :, opt_idx[3], :], cmap="bwr")
-axs[2, 1].set_xlabel(L"\Delta / \lambda_0")
-axs[2, 1].set_ylabel(L"L /\lambda_0")
-axs[2, 1].set_title("Objective (larger better)")
+    c21 = axs[2, 1].contourf(Delt_list, L_list, efficiency[opt_idx[1], :, opt_idx[3], :], cmap="bwr")
+    axs[2, 1].set_xlabel(L"\Delta / \lambda_0")
+    axs[2, 1].set_ylabel(L"L /\lambda_0")
+    axs[2, 1].set_title("Objective (larger better)")
 
-c22 = axs[2, 2].contourf(d_list, L_list, efficiency[opt_idx[1], :, :, opt_idx[4]], cmap="bwr")
-axs[2, 2].set_xlabel(L"d/\lambda_0")
-axs[2, 2].set_ylabel(L"L/\lambda_0")
-axs[2, 2].set_title("Objective (larger better)")
+    c22 = axs[2, 2].contourf(d_list, L_list, efficiency[opt_idx[1], :, :, opt_idx[4]], cmap="bwr")
+    axs[2, 2].set_xlabel(L"d/\lambda_0")
+    axs[2, 2].set_ylabel(L"L/\lambda_0")
+    axs[2, 2].set_title("Objective (larger better)")
 
-c23 = axs[2, 3].contourf(E_list, L_list, efficiency[:, :, opt_idx[3], opt_idx[4]]', cmap="bwr")
-axs[2, 3].set_xlabel(L"E_0")
-axs[2, 3].set_ylabel(L"L/\lambda_0")
-axs[2, 3].set_title("Objective (larger better)")
-PyPlot.svg(true)
-display(fig_1)
+    c23 = axs[2, 3].contourf(E_list, L_list, efficiency[:, :, opt_idx[3], opt_idx[4]]', cmap="bwr")
+    axs[2, 3].set_xlabel(L"E_0")
+    axs[2, 3].set_ylabel(L"L/\lambda_0")
+    axs[2, 3].set_title("Objective (larger better)")
+    PyPlot.svg(true)
+    display(fig_1)
+end
 
 fs_0 = σ_tot[opt_idx, 1]
 fs_π = σ_tot[opt_idx, 2]
@@ -228,10 +245,17 @@ data_dict_fs = Dict("E" => collect(E_list), "L" => collect(L_list),
                      "dir" => [1, 2],
                      "sigma_tot" => σ_tot,
                      "order" => ["E", "L", "d", "delt", "dir"])
+data_dict_sig = Dict("E" => collect(E_list), "L" => collect(L_list), 
+                     "d" => collect(d_list), "delt" => collect(Delt_list), 
+                     "dir" => [1, 2],
+                     "sigma_re" => real(sigmas),
+                     "sigma_im" => imag(sigmas),
+                     "order" => ["E", "L", "d", "delt", "dir"])
 
 NAME_PART = string(Nx)*"x"*string(Ny)*"_"*EQ_TYPE*".h5"
 save(PATH_DATA*"obj4D_freq_"*NAME_PART, data_dict_obj)
 save(PATH_DATA*"fs4D_freq_"*NAME_PART, data_dict_fs)
+save(PATH_DATA*"sig4D_freq_"*NAME_PART, data_dict_sig)
 
 data_dict_loaded = load(PATH_DATA*"obj4D_freq_"*NAME_PART)
 data_dict_loaded["obj"] == data_dict_obj["obj"]
