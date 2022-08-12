@@ -20,6 +20,8 @@ using AtomicArrays
 const EMField = AtomicArrays.field_module.EMField
 const effective_constants = AtomicArrays.effective_interaction_module.effective_constants
 
+import EllipsisNotation: Ellipsis
+const .. = Ellipsis()
 
 GLMakie.activate!()
 
@@ -27,27 +29,23 @@ GLMakie.activate!()
 
 """
 * `args`: `N_x`, `N_y`, `lat_type`, `eq_type`, `dim_vars`, `path_data`
-* `output`: `filename_fs`, `filename_obj`
+* `output`: `filename_fs`
 """
 function filename_create(args)
     N_x, N_y, lat_type, eq_type, dim_vars, path_data = args
     filename_fs = ("fs" * string(dim_vars) * "D" * "_" * lat_type * "_" * string(N_x)
                    * "x" * string(N_y) * "_" * eq_type * ".h5")
-    filename_obj = ("obj" * string(dim_vars) * "D" * "_" * lat_type * "_" * string(N_x)
-                    * "x" * string(N_y) * "_" * eq_type * ".h5")
     @assert isfile(path_data * filename_fs) "There is no file $filename_fs in the directory $path_data"
-    @assert isfile(path_data * filename_obj) "There is no file $filename_obj in the directory $path_data"
-    return filename_fs, filename_obj
+    return filename_fs
 end
 
 
 """
 * `args`: `path_data::String, file_fs::String, file_obj::String`
-* `output`: `dict_fs, dict_obj`
+* `output`: `dict_fs`
 """
-function load_dict(path_data::String, file_fs::String, file_obj::String)
+function load_dict(path_data::String, file_fs::String)
     dict_fs = load(path_data * file_fs)
-    dict_obj = load(path_data * file_obj)
     if length(dict_fs["order"]) != length(size(dict_fs["sigma_tot"]))
         keys_dict_fs = [isassigned(dict_fs.keys, i) ? dict_fs.keys[i] : "0"
                         for i in 1:length(dict_fs.keys)]
@@ -55,14 +53,7 @@ function load_dict(path_data::String, file_fs::String, file_obj::String)
             [isempty(findall(x -> x == item, keys_dict_fs))
              for item in dict_fs["order"]]))
     end
-    if length(dict_obj["order"]) != length(size(dict_obj["obj"]))
-        keys_dict_obj = [isassigned(dict_obj.keys, i) ? dict_obj.keys[i] : "0"
-                         for i in 1:length(dict_obj.keys)]
-        deleteat!(dict_obj["order"], findall(x -> x == true,
-            [isempty(findall(x -> x == item, keys_dict_obj))
-             for item in dict_obj["order"]]))
-    end
-    return dict_fs, dict_obj
+    return dict_fs
 end
 
 "Parameters"
@@ -94,11 +85,13 @@ end
 begin
     # File names
     args_files = [Nx, Ny, LAT_TYPE, EQ_TYPE, DIM_VARS, PATH_DATA]
-    const FILE_FS, FILE_OBJ = filename_create(args_files)
+    const FILE_FS = filename_create(args_files)
 
     # Loading data
-    dict_fs, dict_obj = load_dict(PATH_DATA, FILE_FS, FILE_OBJ)
-    dict_obj["order"]
+    dict_fs = load_dict(PATH_DATA, FILE_FS)
+    dict_fs["order"]
+    obj_data = AtomicArrays.field_module.objective(
+        dict_fs["sigma_tot"][.., 1], dict_fs["sigma_tot"][.., 2])
 end
 
 begin
@@ -108,29 +101,29 @@ begin
             (dict_fs["E"], dict_fs["L"], dict_fs["a_1"], dict_fs["delt"], [0, 1]),
             dict_fs["sigma_tot"])
         obj = LinearInterpolation(
-            (dict_obj["E"], dict_obj["L"], dict_obj["a_1"], dict_obj["delt"]),
-            dict_obj["obj"])
+            (dict_fs["E"], dict_fs["L"], dict_fs["a_1"], dict_fs["delt"]),
+            obj_data)
 
         # Variables
-        E = range(dict_obj["E"][1], dict_obj["E"][end], NMAX)
-        L = range(dict_obj["L"][1], dict_obj["L"][end], NMAX)
-        a_1 = range(dict_obj["a_1"][1], dict_obj["a_1"][end], NMAX)
-        delt = range(dict_obj["delt"][1], dict_obj["delt"][end], NMAX)
+        E = range(dict_fs["E"][1], dict_fs["E"][end], NMAX)
+        L = range(dict_fs["L"][1], dict_fs["L"][end], NMAX)
+        a_1 = range(dict_fs["a_1"][1], dict_fs["a_1"][end], NMAX)
+        delt = range(dict_fs["delt"][1], dict_fs["delt"][end], NMAX)
 
         "Interpolation's done"
-    elseif LAT_TYPE == "lat"
+    elseif LAT_TYPE == "lat" || LAT_TYPE == "freq"
         σ_tot = LinearInterpolation(
             (dict_fs["E"], dict_fs["L"], dict_fs["d"], dict_fs["delt"], [0, 1]),
             dict_fs["sigma_tot"])
         obj = LinearInterpolation(
-            (dict_obj["E"], dict_obj["L"], dict_obj["d"], dict_obj["delt"]),
-            dict_obj["obj"])
+            (dict_fs["E"], dict_fs["L"], dict_fs["d"], dict_fs["delt"]),
+            obj_data)
 
         # Variables
-        E = range(dict_obj["E"][1], dict_obj["E"][end], NMAX)
-        L = range(dict_obj["L"][1], dict_obj["L"][end], NMAX)
-        a_1 = range(dict_obj["d"][1], dict_obj["d"][end], NMAX)
-        delt = range(dict_obj["delt"][1], dict_obj["delt"][end], NMAX)
+        E = range(dict_fs["E"][1], dict_fs["E"][end], NMAX)
+        L = range(dict_fs["L"][1], dict_fs["L"][end], NMAX)
+        a_1 = range(dict_fs["d"][1], dict_fs["d"][end], NMAX)
+        delt = range(dict_fs["delt"][1], dict_fs["delt"][end], NMAX)
         "Interpolation's done"
     end
 end
@@ -141,20 +134,20 @@ end
 begin
     # Find optimal parameters
     if LAT_TYPE == "dimer"
-        obj_max = maximum(dict_obj["obj"])
-        opt_idx = indexin(obj_max, dict_obj["obj"])[1]
-        E_opt = dict_obj["E"][opt_idx[1][1]]
-        L_opt = dict_obj["L"][opt_idx[2][1]]
-        a_1_opt = dict_obj["a_1"][opt_idx[3][1]]
-        delt_opt = dict_obj["delt"][opt_idx[4][1]]
+        obj_max = maximum(obj_data)
+        opt_idx = indexin(obj_max, obj_data)[1]
+        E_opt = dict_fs["E"][opt_idx[1][1]]
+        L_opt = dict_fs["L"][opt_idx[2][1]]
+        a_1_opt = dict_fs["a_1"][opt_idx[3][1]]
+        delt_opt = dict_fs["delt"][opt_idx[4][1]]
         "optimal parameters"
-    elseif LAT_TYPE == "lat"
-        obj_max = maximum(dict_obj["obj"])
-        opt_idx = indexin(obj_max, dict_obj["obj"])[1]
-        E_opt = dict_obj["E"][opt_idx[1][1]]
-        L_opt = dict_obj["L"][opt_idx[2][1]]
-        a_1_opt = dict_obj["d"][opt_idx[3][1]]
-        delt_opt = dict_obj["delt"][opt_idx[4][1]]
+    elseif LAT_TYPE == "lat" || LAT_TYPE == "freq"
+        obj_max = maximum(obj_data)
+        opt_idx = indexin(obj_max, obj_data)[1]
+        E_opt = dict_fs["E"][opt_idx[1][1]]
+        L_opt = dict_fs["L"][opt_idx[2][1]]
+        a_1_opt = dict_fs["d"][opt_idx[3][1]]
+        delt_opt = dict_fs["delt"][opt_idx[4][1]]
         "optimal parameters"
     end
 end
@@ -163,7 +156,7 @@ md"""
 ### Maximum value of objective function and parameters
 
 Objective max:
-$(maximum(dict_obj["obj"]))
+$(obj_max)
 
 E = $(E_opt)
 
@@ -175,7 +168,7 @@ a\_1 = $(a_1_opt)
 
 """
 
-dict_obj["order"]
+dict_fs["order"]
 
 """Plotting"""
 
