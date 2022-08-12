@@ -1,15 +1,12 @@
 #  Two arrays: total field dynamics
-
 using QuantumOptics
 using FFTW
 using BenchmarkTools
 using PyPlot
 using LinearAlgebra
 using DifferentialEquations, Sundials
-#pygui(true)
-gcf()
-
 using Revise
+
 using AtomicArrays
 const EMField = AtomicArrays.field_module.EMField
 const sigma_matrices = AtomicArrays.meanfield_module.sigma_matrices
@@ -17,7 +14,9 @@ const mapexpect = AtomicArrays.meanfield_module.mapexpect
 const mapexpect_mpc = AtomicArrays.mpc_module.mapexpect
 const sigma_matrices_mpc = AtomicArrays.mpc_module.sigma_matrices
 
-dag(x) = conj(transpose(x))
+# pygui(true)
+gcf()
+
 
 const PATH_FIG = "/Users/jimi/Google Drive/Work/In process/Projects/\
                   Collective_effects_QMS/Figures/two_arrays"
@@ -26,33 +25,42 @@ const NMAX_T = 5
 const DIRECTION = "left"
 
 """Parameters"""
-c_light = 1.0
-lam_0 = 1.0
-k_0 = 2*π / lam_0
-om_0 = 2.0*pi*c_light / lam_0
+const c_light = 1.0
+const lam_0 = 1.0
+const k_0 = 2*π / lam_0
+const om_0 = 2.0*pi*c_light / lam_0
+ 
+const Nx = 2
+const Ny = 2
+const Nz = 2  # number of arrays
+const N = Nx*Ny*Nz
+const M = 1 # Number of excitations
 
-Nx = 2
-Ny = 2
-Nz = 2  # number of arrays
-N_t = Nx*Ny*Nz
-M = 1 # Number of excitations
-d = 0.15 #0.147
+"Key parameters"
+
+d = 0.1 #0.147
 delt = 0.0 #0.147
+Delt = 0.01
 d_1 = d
 d_2 = d + delt
-L = 0.15#0.7158
-pos_1 = AtomicArrays.geometry_module.rectangle(d_1, d_1; Nx=Nx, Ny=Ny,
+L = 0.1#0.7158
+E_ampl = 9.7e-4 + 0im#0.001 + 0im
+
+"Spin arrays"
+
+pos_1 = geometry_module.rectangle(d_1, d_1; Nx=Nx, Ny=Ny,
                                                position_0=[-(Nx-1)*d_1/2, 
                                                            -(Ny-1)*d_1/2,
                                                            -L/2])
-pos_2 = AtomicArrays.geometry_module.rectangle(d_2, d_2; Nx=Nx, Ny=Ny,
+pos_2 = geometry_module.rectangle(d_2, d_2; Nx=Nx, Ny=Ny,
                                                position_0=[-(Nx-1)*d_2/2, 
                                                            -(Ny-1)*d_2/2,
                                                            L/2])
 pos = vcat(pos_1, pos_2)
-μ = [(i < 0) ? [1, 0, 0.0] : [1.0, 0.0im, 0.0] for i = 1:N_t]
-γ_e = [1e-2 for i = 1:N_t]
-S = SpinCollection(pos,μ; gammas=γ_e)
+μ = [(i < 0) ? [1, 0, 0.0] : [1.0, 0.0im, 0.0] for i = 1:N]
+γ_e = [1e-2 for i = 1:N]
+δ_S = [(i < Nx*Ny + 1) ? -0.5*Delt : 0.5*Delt for i = 1:N]
+S = SpinCollection(pos,μ; gammas=γ_e, deltas=δ_S)
 
 
 # Plot arrays (atom distribution)
@@ -66,11 +74,11 @@ PyPlot.scatter3D(x_at, y_at, z_at)
 Ωmat = OmegaMatrix(S)
 Γmat = GammaMatrix(S)
 
-# Incident field parameters
+
+"Incident field"
 
 om_f = om_0
 
-E_ampl = 9.7e-4 + 0im#0.001 + 0im
 E_kvec = om_f/c_light
 E_width = 0.3*d*sqrt(Nx*Ny)
 if (DIRECTION == "right")
@@ -94,14 +102,12 @@ em_inc_function = AtomicArrays.field_module.plane
 
 """Impinging field"""
 
-x = range(-10, 10, NMAX)
+x = range(-0.5, 0.5, NMAX)
 y = 0.5*(pos[1][2] + pos[Nx*Ny][2])
-z = range(-5., 5., NMAX)
+z = range(-1., 1., NMAX)
 e_field = Matrix{ComplexF64}(undef, length(x), length(z))
-for i = 1:length(x)
-    for j = 1:length(z)
-        e_field[i,j] = em_inc_function([x[i],y,z[j]], incident_field)[1]
-    end
+for i in eachindex(x), j in eachindex(z)
+    e_field[i,j] = em_inc_function([x[i],y,z[j]], incident_field)[1]
 end
 
 
@@ -110,8 +116,8 @@ PyPlot.contourf(z, x, real(e_field), 30)
 for p in pos
     PyPlot.plot(p[3],p[1],"o",color="w",ms=2)
 end
-PyPlot.xlabel("z")
 PyPlot.ylabel("x")
+PyPlot.xlabel("z")
 PyPlot.colorbar(label="Amplitude")
 PyPlot.tight_layout()
 
@@ -120,7 +126,7 @@ PyPlot.tight_layout()
 
 # E_field vector for Rabi constant computation
 E_vec = [em_inc_function(S.spins[k].position,incident_field)
-         for k = 1:N_t]
+         for k = 1:N]
 
 Om_R = AtomicArrays.field_module.rabi(E_vec, μ)
 
@@ -133,53 +139,65 @@ axs[2].plot(real(Om_R),"-o")
 axs[2].plot(imag(Om_R), "-o")
 axs[2].set_title(L"\Re(\Omega_R), \Im(\Omega_R)")
 
-tmax = 1000/minimum(abs.(Γmat))
+tmax = 20e5
 const T = [0:tmax/100:tmax;]
 # Initial state (Bloch state)
 const phi = 0.
 const theta = pi/1.
 
 # Meanfield
-state0 = AtomicArrays.meanfield_module.blochstate(phi, theta, N_t)
+state0 = AtomicArrays.meanfield_module.blochstate(phi, theta, N)
 tout, state_mf_t = AtomicArrays.meanfield_module.timeevolution_field(T, S, Om_R, state0);
 ss_mf = AtomicArrays.meanfield_module.steady_state_field(T, S, Om_R, state0, 
         alg=DynamicSS(AutoVern7(RadauIIA5(), nonstifftol = 5//10)))
+ss_mf = AtomicArrays.meanfield_module.steady_state_field(T, S, Om_R, state0, 
+        alg=SSRootfind())
 ss_mf - state_mf_t[end].data
+ss_mf_state = AtomicArrays.meanfield_module.ProductState(ss_mf.u)
 @btime AtomicArrays.meanfield_module.steady_state_field(T, S, Om_R, state0, 
-        alg=SSRootfind());
+        alg=SSRootfind(), reltol=1e-10, abstol=1e-12);
 @btime AtomicArrays.meanfield_module.steady_state_field(T, S, Om_R, state0, 
         alg=DynamicSS(CVODE_BDF(linear_solver=:GMRES)), dt=0.5);
 @btime AtomicArrays.meanfield_module.steady_state_field(T, S, Om_R, state0, 
-        alg=DynamicSS(RadauIIA5()));
+        alg=DynamicSS(RadauIIA5()), reltol=1e-10, abstol=1e-12);
 @btime AtomicArrays.meanfield_module.steady_state_field(T, S, Om_R, state0, 
-        alg=DynamicSS(Rodas5()));
+        alg=DynamicSS(Rodas5()), reltol=1e-10, abstol=1e-12);
 @btime AtomicArrays.meanfield_module.steady_state_field(T, S, Om_R, state0, 
-        alg=DynamicSS(CompositeAlgorithm((Vern7(), RadauIIA5()), AutoSwitch(Vern7(), RadauIIA5()))));
+        alg=DynamicSS(CompositeAlgorithm((Vern7(), RadauIIA5()), AutoSwitch(Vern7(), RadauIIA5()))), reltol=1e-10, abstol=1e-12);
 @btime AtomicArrays.meanfield_module.steady_state_field(T, S, Om_R, state0, 
         alg=DynamicSS(Vern7()));
 @btime AtomicArrays.meanfield_module.steady_state_field(T, S, Om_R, state0, 
-        alg=DynamicSS(AutoVern7(RadauIIA5(), nonstifftol = 3//10)));
+        alg=DynamicSS(AutoVern7(RadauIIA5(), nonstifftol = 3//10)), reltol=1e-10, abstol=1e-12);
 
 
 
-@btime AtomicArrays.meanfield_module.timeevolution_field(T, S, Om_R, state0);
+@btime AtomicArrays.meanfield_module.timeevolution_field(T, S, Om_R, state0, reltol=1e-10, abstol=1e-12);
 @btime AtomicArrays.meanfield_module.timeevolution_field(T, S, Om_R, state0,
-        alg=Rodas5());
+        alg=Rodas5(), reltol=1e-10, abstol=1e-12);
 @btime AtomicArrays.meanfield_module.timeevolution_field(T, S, Om_R, state0,
-        alg=Vern7());
+        alg=Vern7(), reltol=1e-10, abstol=1e-12);
 @btime AtomicArrays.meanfield_module.timeevolution_field(T, S, Om_R, state0,
-        alg=VCABM());
+        alg=VCABM(), reltol=1e-10, abstol=1e-12);
 @btime AtomicArrays.meanfield_module.timeevolution_field(T, S, Om_R, state0,
-        alg=CVODE_BDF(linear_solver=:GMRES), dt=0.5);
+        alg=CVODE_BDF(linear_solver=:GMRES), reltol=1e-10, abstol=1e-12);
 
 
 # MPC
-#state0_mpc = AtomicArrays.mpc.blochstate(phi, theta, N_t)
-state0_mpc = AtomicArrays.mpc_module.state_from_mf(state_mf_t[end], phi, theta, N_t)
-#state0 = state_mpc_t[end]
-tout, state_mpc_t = AtomicArrays.mpc_module.timeevolution_field(T, S, Om_R, state0_mpc, alg=AutoVern7(Rodas5()), reltol=1e-6, abstol=1e-8);
-ss_mpc = AtomicArrays.mpc_module.steady_state_field(T, S, Om_R, state0_mpc, alg=DynamicSS(CVODE_BDF(linear_solver=:GMRES)), dt=100.1, reltol=1e-6,abstol=1e-8);
-ss_mpc = AtomicArrays.mpc_module.steady_state_field(T, S, Om_R, state0_mpc, alg=DynamicSS(AutoVern7(Rodas5())), reltol=1e-6,abstol=1e-8);
+# state0_mpc = AtomicArrays.mpc_module.blochstate(phi, theta, N)
+state0_mpc = AtomicArrays.mpc_module.state_from_mf(ss_mf_state, phi, theta, N)
+# state0 = state_mpc_t[end]
+tout, state_mpc_t = AtomicArrays.mpc_module.timeevolution_field(T, S, Om_R, state0_mpc, alg=VCABM(), reltol=1e-10, abstol=1e-12);
+ss_mpc = AtomicArrays.mpc_module.steady_state_field(T, S, Om_R, state0_mpc, alg=DynamicSS(CVODE_BDF(linear_solver=:GMRES)), dt=0.01, reltol=1e-10,abstol=1e-12);
+ss_mpc = AtomicArrays.mpc_module.steady_state_field(T, S, Om_R, state0_mpc, alg=DynamicSS(VCABM()), reltol=1e-10,abstol=1e-12);
+ss_mpc = AtomicArrays.mpc_module.steady_state_field(T, S, Om_R, state0_mpc, alg=DynamicSS(Rodas5()), reltol=1e-10,abstol=1e-12);
+using NLsolve
+ss_mpc = AtomicArrays.mpc_module.steady_state_field(T, S, Om_R, state0_mpc,
+alg=SSRootfind(nlsolve = (f, u0, abstol) -> (NLsolve.nlsolve(f, u0,
+                                                autodiff = :forward,
+                                                method = :anderson,
+                                                iterations = Int(1e5),
+                                                ftol = abstol))));
+
 ss_mpc - state_mpc_t[end].data
 
 
@@ -201,44 +219,48 @@ ss_mpc - state_mpc_t[end].data
 
 
 # Expectation values
-num_at = 2
+begin
+    sx_mf = sum([mapexpect(AtomicArrays.meanfield_module.sx, state_mf_t, i) for i=1:N]) ./ (N)
+    sy_mf = sum([mapexpect(AtomicArrays.meanfield_module.sy, state_mf_t, i) for i=1:N]) ./ (N)
+    sz_mf = sum([mapexpect(AtomicArrays.meanfield_module.sz, state_mf_t, i) for i=1:N]) ./ (N)
 
-sx_mf = sum([mapexpect(AtomicArrays.meanfield_module.sx, state_mf_t, i) for i=1:N_t]) ./ (N_t)
-sy_mf = sum([mapexpect(AtomicArrays.meanfield_module.sy, state_mf_t, i) for i=1:N_t]) ./ (N_t)
-sz_mf = sum([mapexpect(AtomicArrays.meanfield_module.sz, state_mf_t, i) for i=1:N_t]) ./ (N_t)
+    sx_mpc = sum([mapexpect_mpc(AtomicArrays.mpc_module.sx, state_mpc_t, i) for i=1:N]) ./ (N)
+    sy_mpc = sum([mapexpect_mpc(AtomicArrays.mpc_module.sy, state_mpc_t, i) for i=1:N]) ./ (N)
+    sz_mpc = sum([mapexpect_mpc(AtomicArrays.mpc_module.sz, state_mpc_t, i) for i=1:N]) ./ (N)
 
-sx_mpc = sum([mapexpect_mpc(AtomicArrays.mpc_module.sx, state_mpc_t, i) for i=1:N_t]) ./ (N_t)
-sy_mpc = sum([mapexpect_mpc(AtomicArrays.mpc_module.sy, state_mpc_t, i) for i=1:N_t]) ./ (N_t)
-sz_mpc = sum([mapexpect_mpc(AtomicArrays.mpc_module.sz, state_mpc_t, i) for i=1:N_t]) ./ (N_t)
+    sx_mpc_ss = sum([mapexpect_mpc(AtomicArrays.mpc_module.sx, [AtomicArrays.mpc_module.MPCState(ss_mpc.u)], i) for i=1:N]) ./ (N)
+    sy_mpc_ss = sum([mapexpect_mpc(AtomicArrays.mpc_module.sy, [AtomicArrays.mpc_module.MPCState(ss_mpc.u)], i) for i=1:N]) ./ (N)
+    sz_mpc_ss = sum([mapexpect_mpc(AtomicArrays.mpc_module.sz, [AtomicArrays.mpc_module.MPCState(ss_mpc.u)], i) for i=1:N]) ./ (N)
+end
 
-sx_mpc_ss = sum([mapexpect_mpc(AtomicArrays.mpc_module.sx, [AtomicArrays.mpc_module.MPCState(ss_mpc.u)], i) for i=1:N_t]) ./ (N_t)
-sy_mpc_ss = sum([mapexpect_mpc(AtomicArrays.mpc_module.sy, [AtomicArrays.mpc_module.MPCState(ss_mpc.u)], i) for i=1:N_t]) ./ (N_t)
-sz_mpc_ss = sum([mapexpect_mpc(AtomicArrays.mpc_module.sz, [AtomicArrays.mpc_module.MPCState(ss_mpc.u)], i) for i=1:N_t]) ./ (N_t)
+begin
+    fig, axs = PyPlot.subplots(ncols=1, nrows=3, figsize=(6, 9),
+                            constrained_layout=true)
+    axs[1].plot(T, sx_mf, label="mean field")
+    axs[1].plot(T, sx_mpc, label="mpc")
+    axs[1].plot(T, [sx_mpc_ss[1] for t in T], "--", color="black")
+    axs[1].set_ylim(-0.02451,-0.024485)
+    axs[1].set_xscale("linear")
+    axs[1].set_ylabel(L"\langle \sigma_x \rangle")
+    axs[1].set_title("Average values")
+    axs[1].legend()
 
+    axs[2].plot(T, sy_mf, label="mean field")
+    axs[2].plot(T, sy_mpc, label="mpc")
+    axs[2].plot(T, [sy_mpc_ss[1] for t in T], "--", color="black")
+    axs[2].set_ylim(-0.02942,-0.02935)
+    axs[2].set_xscale("linear")
+    axs[2].set_ylabel(L"\langle \sigma_y \rangle")
 
-fig, axs = PyPlot.subplots(ncols=1, nrows=3, figsize=(6, 9),
-                        constrained_layout=true)
-axs[1].plot(T, sx_mf, label="mean field")
-axs[1].plot(T, sx_mpc, label="mpc")
-axs[1].plot(T, [sx_mpc_ss[1] for t in T], "--", color="black")
-axs[1].set_xscale("linear")
-axs[1].set_ylabel(L"\langle \sigma_x \rangle")
-axs[1].set_title("Average values")
-axs[1].legend()
-
-axs[2].plot(T, sy_mf, label="mean field")
-axs[2].plot(T, sy_mpc, label="mpc")
-axs[2].plot(T, [sy_mpc_ss[1] for t in T], "--", color="black")
-axs[2].set_xscale("linear")
-axs[2].set_ylabel(L"\langle \sigma_y \rangle")
-
-axs[3].plot(T, sz_mf, label="mean field")
-axs[3].plot(T, sz_mpc, label="mpc")
-axs[3].plot(T, [sz_mpc_ss[1] for t in T], "--", color="black")
-axs[3].set_xscale("linear")
-axs[3].set_xlabel("Time")
-axs[3].set_ylabel(L"\langle \sigma_z \rangle")
-display(fig)
+    axs[3].plot(T, sz_mf, label="mean field")
+    axs[3].plot(T, sz_mpc, label="mpc")
+    axs[3].plot(T, [sz_mpc_ss[1] for t in T], "--", color="black")
+    axs[3].set_ylim(-0.9995,-0.999)
+    axs[3].set_xscale("linear")
+    axs[3].set_xlabel("Time")
+    axs[3].set_ylabel(L"\langle \sigma_z \rangle")
+    display(fig)
+end
 
 t_ind = length(T)
 #sx_mat, sy_mat, sz_mat, sm_mat, sp_mat = sigma_matrices(state_mf_t, t_ind)
@@ -260,8 +282,8 @@ distance = 0.3  # in terms of d
 
 if VIEW == "x-y"
 # X-Y view
-    x = range(pos[Nx*Ny+1][1] - 3d, pos[N_t][1] + 3d, NMAX)
-    y = range(pos[Nx*Ny+1][2] - 3d, pos[N_t][2] + 3d, NMAX)
+    x = range(pos[Nx*Ny+1][1] - 3d, pos[N][1] + 3d, NMAX)
+    y = range(pos[Nx*Ny+1][2] - 3d, pos[N][2] + 3d, NMAX)
     z = -sign(E_angle[1])*(L + (distance+5.3)*d) + L + distance*d
     t_ind = length(T)
     I = zeros(length(x), length(y))
