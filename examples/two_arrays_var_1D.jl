@@ -2,13 +2,13 @@
 
 using QuantumOptics
 using PyPlot
-using LinearAlgebra, OrdinaryDiffEq
+using LinearAlgebra, OrdinaryDiffEq, DifferentialEquations
 PyPlot.svg(true)
 
 using Revise
 using AtomicArrays
 const EMField = AtomicArrays.field_module.EMField
-const sigma_matrices = AtomicArrays.meanfield_module.sigma_matrices
+const sigma_matrices_mf = AtomicArrays.meanfield_module.sigma_matrices
 const sigma_matrices_mpc = AtomicArrays.mpc_module.sigma_matrices
 
 
@@ -16,6 +16,9 @@ dag(x) = conj(transpose(x))
 
 
 const PATH_FIGS, PATH_DATA = AtomicArrays.misc_module.path()
+
+const EQ_TYPE = "mf"
+const LAT_TYPE = "freq"
 
 # const em_inc_function = AtomicArrays.field_module.gauss
 const em_inc_function = AtomicArrays.field_module.plane
@@ -32,17 +35,17 @@ const lam_0 = 1.0
 const k_0 = 2 * π / lam_0
 const om_0 = 2.0 * pi * c_light / lam_0
 
-const Nx = 4
-const Ny = 4
+const Nx = 10
+const Ny = 10
 const Nz = 2  # number of arrays
 const N = Nx * Ny * Nz
 const M = 1 # Number of excitations
-d = 0.1888
+d = 0.24444
 delt = 0. #0.156#0.0871859
-Delt = 0.055
+Delt = 0.022222
 d_1 = d
 d_2 = d + delt
-L = 0.7158 #0.338#0.335678
+L = 0.62222 #0.338#0.335678
 
 pos_1 = geometry_module.rectangle(d_1, d_1; Nx=Nx, Ny=Ny,
     position_0=[-(Nx - 1) * d_1 / 2,
@@ -114,24 +117,35 @@ Threads.@threads for kkii in CartesianIndices((2, NMAX))
     T = [0:25000.0:50000;]
     # Initial state (Bloch state)
     phi = 0.0
-    theta = pi / 1.0
-    # Meanfield
-    state0 = AtomicArrays.meanfield_module.blochstate(phi, theta, Nx * Ny * Nz)
-    tout, state_mf_t = AtomicArrays.meanfield_module.timeevolution_field(T, S,
-        Om_R,
-        state0, alg=Vern7(), reltol=1e-10, abstol=1e-12)
-    # t_ind = length(T)
-    # sx_mat, sy_mat, sz_mat, sm_mat, sp_mat = sigma_matrices(state_mf_t, t_ind)
+    theta = pi
 
-    # MPC
-    # state0 = AtomicArrays.mpc_module.blochstate(phi, theta, Nx * Ny * Nz)
-    state0 = AtomicArrays.mpc_module.state_from_mf(state_mf_t[end], 
-        phi, theta, N)
-    tout, state_mpc_t = AtomicArrays.mpc_module.timeevolution_field(T, S,
-        Om_R, state0, alg=Vern7(), reltol=1e-10, abstol=1e-12)
-    t_ind = length(T)
-    sx_mat, sy_mat, sz_mat, sm_mat, sp_mat = sigma_matrices_mpc(state_mpc_t, t_ind)
+    "Meanfield"
+    state0_mf = AtomicArrays.meanfield_module.blochstate(phi, theta, Nx * Ny * Nz)
+    # tout, state_mf_t = AtomicArrays.meanfield_module.timeevolution_field(T, S,
+    #     Om_R, state0_mf, alg=Vern7(), reltol=1e-10, abstol=1e-12)
+    state = AtomicArrays.meanfield_module.steady_state_field(T, S, Om_R, 
+        state0_mf, alg=SSRootfind(), reltol=1e-10, abstol=1e-12)
+    state_mf_t = [AtomicArrays.meanfield_module.ProductState(state.u)]
 
+    if EQ_TYPE == "mpc"
+        state0 = AtomicArrays.mpc_module.state_from_mf(state_mf_t[end], phi, theta, N)
+    
+        # state = AtomicArrays.mpc_module.steady_state_field(T, S, Om_R, 
+        #     state0, alg=SSRootfind(), reltol=1e-10, abstol=1e-12)
+        # state_t = [AtomicArrays.mpc_module.MPCState(state.u)]
+
+        _, state_t = AtomicArrays.mpc_module.timeevolution_field(T, S,
+         Om_R, state0, alg=VCABM(), 
+         reltol=1e-10, abstol=1e-12, maxiters=1e10);
+
+        # t_ind = 1
+        t_ind = length(T)
+        _, _, _, sm_mat, _ = sigma_matrices_mpc(state_t, t_ind)
+    elseif EQ_TYPE == "mf"
+        t_ind = 1
+        # t_ind = length(T)
+        _, _, _, sm_mat, _ = sigma_matrices_mf(state_mf_t, t_ind)
+    end
 
     """Forward scattering"""
 
@@ -139,7 +153,7 @@ Threads.@threads for kkii in CartesianIndices((2, NMAX))
     σ_tot[ii, kk] = AtomicArrays.field_module.forward_scattering(r_lim, E_inc,
         S, sm_mat)
     zlim = 500#0.7*(d+delt)*(Nx)
-    n_samp = 60
+    n_samp = 5
     # t_tot[ii, kk], pnts = AtomicArrays.field_module.transmission_reg(
     #     E_inc, em_inc_function,
     #     S, sm_mat; samples=n_samp,
@@ -196,16 +210,19 @@ end
 
 
 function scatt_fig(var, result)
-    fig, ax = PyPlot.subplots(ncols=1, nrows=1, figsize=(6, 4),
+    obj = AtomicArrays.field_module.objective(result[:, 1], result[:, 2])
+    fig, ax = PyPlot.subplots(ncols=1, nrows=1, figsize=(6, 3),
         constrained_layout=true)
-    ax.plot(var, result[:, 1], label=L"0")
-    ax.plot(var, result[:, 2], label=L"\pi")
+    ax.plot(var, result[:, 1], color="r", label=L"\sigma_0")
+    ax.plot(var, result[:, 2], color="b", label=L"\sigma_\pi")
+    ax.plot(var, obj, "--", color="black", label=L"\mathcal{M}")
     ax.set_xscale("log")
     ax.set_xlabel(L"E_0")
-    ax.set_title("Scattering: 0, π")
+    ax.set_ylabel(L"\sigma_{0,\pi}")
+    # ax.set_title("Scattering: 0, π")
     ax.legend()
-    ax.text(var[NMAX÷6], maximum(result) / 2, params_text, fontsize=12, va="center")
-    fig.savefig(PATH_FIGS * "Evar_"*string(Nx)*"x"*string(Ny)*"_RL_lat_mpc.pdf", dpi=300)
+    # ax.text(var[NMAX÷6], maximum(result) / 2, params_text, fontsize=12, va="center")
+    fig.savefig(PATH_FIGS * "Evar_"*string(Nx)*"x"*string(Ny)*"_RL_"*LAT_TYPE*"_"*EQ_TYPE*".pdf", dpi=300)
     return fig
 end
 

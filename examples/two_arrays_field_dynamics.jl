@@ -1,4 +1,14 @@
 #  Two arrays: total field dynamics
+begin
+    if pwd()[end-14:end] == "AtomicArrays.jl"
+        PATH_ENV = "."
+    else
+        PATH_ENV = "../"
+    end
+end
+using Pkg
+Pkg.activate(PATH_ENV)
+
 using QuantumOptics
 using FFTW
 using BenchmarkTools
@@ -17,12 +27,16 @@ const sigma_matrices_mpc = AtomicArrays.mpc_module.sigma_matrices
 # pygui(true)
 gcf()
 
+const PATH_FIGS, PATH_DATA = AtomicArrays.misc_module.path()
 
-const PATH_FIG = "/Users/jimi/Google Drive/Work/In process/Projects/\
-                  Collective_effects_QMS/Figures/two_arrays"
+const EQ_TYPE = "mf"
+const LAT_TYPE = "freq"
+
+# const em_inc_function = AtomicArrays.field_module.gauss
+const em_inc_function = AtomicArrays.field_module.plane
 const NMAX = 100
 const NMAX_T = 5
-const DIRECTION = "left"
+const DIRECTION = "R"
 
 """Parameters"""
 const c_light = 1.0
@@ -30,21 +44,21 @@ const lam_0 = 1.0
 const k_0 = 2*π / lam_0
 const om_0 = 2.0*pi*c_light / lam_0
  
-const Nx = 2
-const Ny = 2
+const Nx = 10
+const Ny = 10
 const Nz = 2  # number of arrays
 const N = Nx*Ny*Nz
 const M = 1 # Number of excitations
 
 "Key parameters"
 
-d = 0.1 #0.147
+d = 0.24444 #0.147
 delt = 0.0 #0.147
-Delt = 0.01
+Delt = 0.022222
 d_1 = d
 d_2 = d + delt
-L = 0.1#0.7158
-E_ampl = 9.7e-4 + 0im#0.001 + 0im
+L = 0.62222#0.7158
+E_ampl = 1.8333e-2 + 0im#0.001 + 0im
 
 "Spin arrays"
 
@@ -81,11 +95,11 @@ om_f = om_0
 
 E_kvec = om_f/c_light
 E_width = 0.3*d*sqrt(Nx*Ny)
-if (DIRECTION == "right")
+if (DIRECTION == "R")
     E_pos0 = [0.0,0.0,0.0]
     E_polar = [1.0, 0im, 0.0]
     E_angle = [0.0, 0.0]  # {θ, φ}
-elseif (DIRECTION == "left")
+elseif (DIRECTION == "L")
     E_pos0 = [0.0,0.0,0.0*L]
     E_polar = [-1.0, 0im, 0.0]
     E_angle = [π, 0.0]  # {θ, φ}
@@ -96,8 +110,6 @@ end
 
 incident_field = EMField(E_ampl, E_kvec, E_angle, E_polar;
                      position_0 = E_pos0, waist_radius = E_width)
-#em_inc_function = AtomicArrays.field_module.gauss
-em_inc_function = AtomicArrays.field_module.plane
 
 
 """Impinging field"""
@@ -139,7 +151,7 @@ axs[2].plot(real(Om_R),"-o")
 axs[2].plot(imag(Om_R), "-o")
 axs[2].set_title(L"\Re(\Omega_R), \Im(\Omega_R)")
 
-tmax = 20e5
+tmax = 2e4
 const T = [0:tmax/100:tmax;]
 # Initial state (Bloch state)
 const phi = 0.
@@ -147,13 +159,14 @@ const theta = pi/1.
 
 # Meanfield
 state0 = AtomicArrays.meanfield_module.blochstate(phi, theta, N)
-tout, state_mf_t = AtomicArrays.meanfield_module.timeevolution_field(T, S, Om_R, state0);
+tout, state_mf_t = AtomicArrays.meanfield_module.timeevolution_field(T, S, Om_R, state0, alg=VCABM(), reltol=1e-10, abstol=1e-12, maxiters=1e9);
 ss_mf = AtomicArrays.meanfield_module.steady_state_field(T, S, Om_R, state0, 
         alg=DynamicSS(AutoVern7(RadauIIA5(), nonstifftol = 5//10)))
 ss_mf = AtomicArrays.meanfield_module.steady_state_field(T, S, Om_R, state0, 
         alg=SSRootfind())
 ss_mf - state_mf_t[end].data
 ss_mf_state = AtomicArrays.meanfield_module.ProductState(ss_mf.u)
+@btime AtomicArrays.meanfield_module.timeevolution_field(T, S, Om_R, state0, alg=VCABM(), reltol=1e-10, abstol=1e-12);
 @btime AtomicArrays.meanfield_module.steady_state_field(T, S, Om_R, state0, 
         alg=SSRootfind(), reltol=1e-10, abstol=1e-12);
 @btime AtomicArrays.meanfield_module.steady_state_field(T, S, Om_R, state0, 
@@ -190,9 +203,11 @@ tout, state_mpc_t = AtomicArrays.mpc_module.timeevolution_field(T, S, Om_R, stat
 ss_mpc = AtomicArrays.mpc_module.steady_state_field(T, S, Om_R, state0_mpc, alg=DynamicSS(CVODE_BDF(linear_solver=:GMRES)), dt=0.01, reltol=1e-10,abstol=1e-12);
 ss_mpc = AtomicArrays.mpc_module.steady_state_field(T, S, Om_R, state0_mpc, alg=DynamicSS(VCABM()), reltol=1e-10,abstol=1e-12);
 ss_mpc = AtomicArrays.mpc_module.steady_state_field(T, S, Om_R, state0_mpc, alg=DynamicSS(Rodas5()), reltol=1e-10,abstol=1e-12);
+
 using NLsolve
+
 ss_mpc = AtomicArrays.mpc_module.steady_state_field(T, S, Om_R, state0_mpc,
-alg=SSRootfind(nlsolve = (f, u0, abstol) -> (NLsolve.nlsolve(f, u0,
+    alg=SSRootfind(nlsolve = (f, u0, abstol) -> (NLsolve.nlsolve(f, u0,
                                                 autodiff = :forward,
                                                 method = :anderson,
                                                 iterations = Int(1e5),
@@ -263,17 +278,22 @@ begin
 end
 
 t_ind = length(T)
-#sx_mat, sy_mat, sz_mat, sm_mat, sp_mat = sigma_matrices(state_mf_t, t_ind)
+sx_mat, sy_mat, sz_mat, sm_mat, sp_mat = sigma_matrices(state_mf_t, t_ind)
 #sx_mat_c, sy_mat_c, sz_mat_c, sm_mat_c, sp_mat_c = sigma_matrices_mpc(state_mpc_t, t_ind)
 sx_mat_mf, sy_mat_mf, sz_mat_mf, sm_mat_mf, sp_mat_mf = sigma_matrices(state_mf_t, t_ind)
 sx_mat, sy_mat, sz_mat, sm_mat, sp_mat = sigma_matrices_mpc(state_mpc_t, t_ind)
 
 
-PyPlot.figure()
-PyPlot.plot(abs.(sm_mat),"o")
-PyPlot.plot(abs.(sm_mat_mf),"o")
-PyPlot.title(L"\sigma_-(\infty)")
-display(gcf())
+fig_01, ax = plt.subplots(ncols=2, nrows=1, figsize=(8, 6),
+                        constrained_layout=true)
+ax[1].plot(abs.(sm_mat[1:N÷2]), "o", color="r")
+ax[1].plot(abs.(sm_mat[1+N÷2:N]), "o", color="b")
+ax[2].plot(angle.(sm_mat[1:N÷2]), "o", color="r")
+ax[2].plot(angle.(sm_mat[1+N÷2:N]), "o", color="b")
+# PyPlot.plot(abs.(sm_mat_mf),"o")
+ax[1].set_title(L"|\sigma_-(\infty)|")
+ax[2].set_title(L"arg$(\sigma_-(\infty))$")
+display(fig_01)
 
 """Compute the radiation pattern"""
 
@@ -288,8 +308,8 @@ if VIEW == "x-y"
     t_ind = length(T)
     I = zeros(length(x), length(y))
     E_scat = Matrix{Vector{ComplexF64}}(undef, length(x), length(y))
-    Threads.@threads for i=1:length(x)
-        for j=1:length(x)
+    Threads.@threads for i in eachindex(x)
+        for j in eachindex(y)
             E_t = AtomicArrays.field_module.total_field(em_inc_function,
                                                         [x[i],y[j],z],
                                                         incident_field,
@@ -398,15 +418,15 @@ if VIEW == "x-y"
     #)
 elseif VIEW == "x-z"
 # X-Z view
-    x = range(-4.5, 4.5, NMAX) #range(-Nx*d, Nx*d, NMAX)
+    x = range(-2.5, 2.5, NMAX) #range(-Nx*d, Nx*d, NMAX)
     y = 0#0.5*(pos[1][2]+pos[Nx*Ny][2])
-    z = range(-4.5, 4.5, NMAX)
+    z = range(-2.5, 2.5, NMAX)
     t_ind = length(T)
     I = zeros(length(x), length(z))
     E_tot = zeros(length(x), length(z))
     E_sc = zeros(length(x), length(z))
-    Threads.@threads for i=1:length(x)
-        for j=1:length(z)
+    Threads.@threads for i in eachindex(x)
+        for j in eachindex(z)
             I[i,j] = (norm(AtomicArrays.field_module.total_field(em_inc_function,
                                                                  [x[i],y,z[j]],
                                                                  incident_field,
@@ -430,24 +450,28 @@ elseif VIEW == "x-z"
     I_arr_av = (sum(I_arr_sorted) / (length(I_arr_sorted)))
     I_arr_max = findmax(I_arr)[1]
 
-    fig_2, axs = plt.subplots(ncols=3, nrows=1, figsize=(10, 3),
+    fig_2, axs = plt.subplots(ncols=3, nrows=1, figsize=(11, 3),
                               constrained_layout=true)
     levels_f = -1.2:1e-2:1.2
-    levels_I = 0:1e-2:2
+    levels_ft = -2.0:1e-2:2.0
+    levels_I = 0:1e-2:3
+    ticks_I = range(0, 3, 5)
+    ticks_E = range(-1.0, 1.0, 5)
+    ticks_Et = range(-2.0, 2.0, 5)
     c1 = axs[1].contourf(z, x, I, 30, levels=levels_I)
     axs[1].set_xlabel("z")
     axs[1].set_ylabel("x")
-    fig_2.colorbar(c1, label=L"|E_{tot}|^2 / |E_0|^2")
+    fig_2.colorbar(c1, ax=axs[1], label=L"I_{tot} / |E_0|^2", ticks=ticks_I)
     c2 = axs[2].contourf(z, x, E_sc, 30, levels=levels_f)
     axs[2].set_xlabel("z")
-    fig_2.colorbar(c2, label=L"Re(E_{tot} / E_0)")
-    c3 = axs[3].contourf(z, x, E_tot, 30, levels=levels_f)
+    fig_2.colorbar(c2, ax=axs[2], label=L"Re(E_{sc} / E_0)", ticks=ticks_E)
+    c3 = axs[3].contourf(z, x, E_tot, 30, levels=levels_ft)
     axs[3].set_xlabel("z")
-    fig_2.colorbar(c3, label=L"Re(E_{sc} / E_0)")
+    fig_2.colorbar(c3, ax=axs[3], label=L"Re(E_{tot} / E_0)", ticks=ticks_Et)
     for p in pos
-        axs[1].plot(p[3],p[1],"o",color="b",ms=4)
-        axs[2].plot(p[3],p[1],"o",color="b",ms=4)
-        axs[3].plot(p[3],p[1],"o",color="b",ms=4)
+        axs[1].plot(p[3],p[1],"o",color="w",ms=4)
+        axs[2].plot(p[3],p[1],"o",color="w",ms=4)
+        axs[3].plot(p[3],p[1],"o",color="w",ms=4)
     end
 end
 
@@ -461,10 +485,10 @@ display(gcf())
 
 xf = 0.5*(pos[1][1] + pos[Nx*Ny][1])
 yf = 0.5*(pos[1][2] + pos[Nx*Ny][2])
-zf = range(-10, 10, 2*NMAX)
+zf = range(-8, 8, 4*NMAX)
 e_field_x = zeros(ComplexF64, length(zf))
 e_tot_x = zeros(ComplexF64, length(zf))
-for i = 1:length(zf)
+for i in eachindex(zf)
     e_field_x[i] = (em_inc_function([xf,yf,zf[i]], incident_field)[1])
     e_tot_x[i] = (AtomicArrays.field_module.total_field(em_inc_function,
                                                         [xf,yf,zf[i]],
@@ -472,22 +496,24 @@ for i = 1:length(zf)
                                                         S, sm_mat)[1])
 end
 
-fig_5, axs = plt.subplots(ncols=1, nrows=3, figsize=(5.7, 3),
-                        constrained_layout=true)
-axs[1].plot(zf, real(e_field_x))
-axs[1].plot(zf, real(e_tot_x - e_field_x))
-axs[1].plot(zf, real(e_tot_x), "--")
-axs[1].set_xlabel(L"z/\lambda_0")
-axs[1].set_ylabel(L"Re(E_{in}, E_{sc}, E_{tot})")
-axs[2].plot(zf, imag(e_field_x))
-axs[2].plot(zf, imag(e_tot_x - e_field_x))
-axs[2].plot(zf, imag(e_tot_x), "--")
-axs[2].set_xlabel(L"z/\lambda_0")
-axs[2].set_ylabel(L"Im(E_{in}, E_{sc}, E_{tot})")
-axs[3].plot(zf, abs.(e_tot_x), "-")
-axs[3].plot(zf, abs.(e_field_x), "-")
+fig_5, axs = plt.subplots(ncols=1, nrows=3, figsize=(6, 6),
+                        constrained_layout=true, sharex=true)
+axs[1].plot(zf, real(e_field_x/E_ampl), "--", lw=1, color="black", label=L"$\mathrm{Re}(E_{in})$")
+axs[1].plot(zf, real((e_tot_x - e_field_x)/E_ampl), "r", label=L"$\mathrm{Re}(E_{sc})$")
+axs[1].plot(zf, real(e_tot_x/E_ampl), "b", label=L"$\mathrm{Re}(E_{tot})$")
+axs[1].set_ylabel(L"Re(E/E_0)")
+axs[2].plot(zf, imag(e_field_x/E_ampl), "--", lw=1, color="black", label=L"$\mathrm{Im}(E_{in})$")
+axs[2].plot(zf, imag((e_tot_x - e_field_x)/E_ampl), "r", label=L"$\mathrm{Im}(E_{sc})$")
+axs[2].plot(zf, imag(e_tot_x/E_ampl), "b", label=L"$\mathrm{Im}(E_{tot})$")
+axs[2].set_ylabel(L"Im(E/E_0)")
+axs[3].plot(zf, abs.(e_field_x/E_ampl), "--", lw=1, color="black", label=L"$|E_{in}|$")
+axs[3].plot(zf, abs.((e_tot_x - e_field_x)/E_ampl), "r", label=L"$|E_{sc}|$")
+axs[3].plot(zf, abs.(e_tot_x/E_ampl), "b", label=L"$|E_{tot}|$")
 axs[3].set_xlabel(L"z/\lambda_0")
-axs[3].set_ylabel(L"|E_{in}|, |E_{tot}|")
+axs[3].set_ylabel(L"|E|/|E_0|")
+axs[1].legend()
+axs[2].legend()
+axs[3].legend()
 
 display(fig_2)
 display(fig_5)
@@ -524,9 +550,9 @@ zlim2 = 1000
 
 # Plot points on a hemi-sphere
 fig_11 = PyPlot.figure(figsize=(5,5))
-x_p = [points[i][1] for i = 1:length(points)]
-y_p = [points[i][2] for i = 1:length(points)]
-z_p = [points[i][3] for i = 1:length(points)]
+x_p = [p[1] for p in points]
+y_p = [p[2] for p in points]
+z_p = [p[3] for p in points]
 PyPlot.scatter3D(x_p, y_p, z_p)
 #write("../Data/test.bin", I)
 
@@ -562,9 +588,9 @@ PyPlot.tight_layout()
 using GLMakie
 
 tf = AtomicArrays.field_module.total_field
-positions = vec([(x_p[i], y_p[i], z_p[i]) for i in 1:length(x_p)])
+positions = vec([(x_p[i], y_p[i], z_p[i]) for i in eachindex(x_p)])
 vals = [norm(tf(em_inc_function,points[ip],incident_field,S, sm_mat))^2/abs(E_ampl)^2
-        for ip in 1:length(points)]
+        for ip in eachindex(points)]
 fig, ax, pltobj = GLMakie.meshscatter(positions, color = vec(vals),
     marker = FRect3D(Vec3f0(zlim*0.5), Vec3f0(zlim*0.5)), # here, if you use less than 10, you will see smaller squares.
     colormap = :bwr, colorrange = (minimum(vals), maximum(vals)),
@@ -586,9 +612,9 @@ fig
 
 fig.savefig("/home/nikita/Documents/Work/Projects/two_arrays/Figs/figs_lone/dynamics_N10_RL_lat.pdf", dpi=300)
 
-fig_2.savefig("/home/nikita/Documents/Work/Projects/two_arrays/Figs/figs_lone/field2D_N10_L_lat.png", dpi=300)
+fig_2.savefig(PATH_FIGS * "scatt2D_"*string(Nx)*"x"*string(Ny)*"_"*EQ_TYPE*"_opt"*string(DIRECTION)*".png", dpi=300)
 
-fig_5.savefig("/home/nikita/Documents/Work/Projects/two_arrays/Figs/figs_lone/field1D_N10_L_lat.pdf", dpi=300)
+fig_5.savefig(PATH_FIGS * "field1D_"*string(Nx)*"x"*string(Ny)*"_"*EQ_TYPE*"_opt"*string(DIRECTION)*".pdf", dpi=300)
 
 display(fig)
 display(fig_2)

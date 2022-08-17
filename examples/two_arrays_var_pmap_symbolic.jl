@@ -81,7 +81,7 @@ else
                 L / 2])
         pos = vcat(pos_1, pos_2)
 
-        δ_S = [(ind < Nx * Ny) ? 0.0 : 0.0 for ind = 1:N]
+        δ_S = [(ind < Nx * Ny + 1) ? 0.0 : 0.0 for ind = 1:N]
 
         S = SpinCollection(pos, μ; gammas=γ_e, deltas=δ_S)
         Ω = OmegaMatrix(S)
@@ -140,7 +140,7 @@ end
                 L / 2])
         pos = vcat(pos_1, pos_2)
 
-        δ_S = [(ind < Nx * Ny) ? 0.0 : Delt for ind = 1:N]
+        δ_S = [(ind < Nx * Ny + 1) ? 0.0 : Delt for ind = 1:N]
 
         S = SpinCollection(pos, μ; gammas=γ_e, deltas=δ_S)
         Ω = OmegaMatrix(S)

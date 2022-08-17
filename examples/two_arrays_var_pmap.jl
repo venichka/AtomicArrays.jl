@@ -37,14 +37,14 @@ using DelimitedFiles
 
     #em_inc_function = AtomicArrays.field_module.gauss
     const em_inc_function = AtomicArrays.field_module.plane
-    const NMAX = 20
+    const NMAX = 10
     const NMAX_T = 41
     dir_list = ["right", "left"]
     delt_list = range(0.0, 0.1, NMAX)
-    Delt_list = range(-0.1, 0.1, NMAX)
+    Delt_list = range(0.0, 0.2, NMAX)
     E_list = range(5e-3, 2.5e-2, NMAX)
-    L_list = range(1.0e-1, 10e-1, NMAX)
-    d_list = range(1.0e-1, 10e-1, NMAX)
+    L_list = range(1.5e-1, 10e-1, NMAX)
+    d_list = range(1.5e-1, 10e-1, NMAX)
 
     """Parameters"""
     const c_light = 1.0
@@ -52,8 +52,8 @@ using DelimitedFiles
     const k_0 = 2 * π / lam_0
     const om_0 = 2.0 * pi * c_light / lam_0
 
-    const Nx = 2
-    const Ny = 2
+    const Nx = 10
+    const Ny = 10
     const Nz = 2  # number of arrays
     const N = Nx * Ny * Nz
     const M = 1 # Number of excitations
@@ -77,7 +77,7 @@ using DelimitedFiles
                 L / 2])
         pos = vcat(pos_1, pos_2)
 
-        δ_S = [(ind < Nx * Ny) ? -0.5*Delt : 0.5*Delt for ind = 1:N]
+        δ_S = [(ind < Nx * Ny + 1) ? -0.5*Delt : 0.5*Delt for ind = 1:N]
 
         S = SpinCollection(pos, μ; gammas=γ_e, deltas=δ_S)
 
@@ -100,19 +100,19 @@ using DelimitedFiles
         E_vec = [em_inc_function(S.spins[k].position, E_inc) for k = 1:Nx*Ny*Nz]
         Om_R = AtomicArrays.field_module.rabi(E_vec, μ)
 
-        tmax = 2e6 #1. / minimum(abs.(GammaMatrix(S)))
+        tmax = 5e4 #1. / minimum(abs.(GammaMatrix(S)))
         T = [0:tmax/2:tmax;]
         # Initial state (Bloch state)
         phi = 0.0
         theta = pi / 1.0
         # Meanfield
         state0_mf = AtomicArrays.meanfield_module.blochstate(phi, theta, N)
-        # _, state_mf_t = AtomicArrays.meanfield_module.timeevolution_field(T, S,
-        #    Om_R,
-        #    state0_mf, alg=VCABM(), reltol=1e-10, abstol=1e-12, maxiters=1e9)
-        state = AtomicArrays.meanfield_module.steady_state_field(T, S, Om_R, 
-            state0_mf, alg=SSRootfind(), reltol=1e-10, abstol=1e-12)
-        state_mf_t = [AtomicArrays.meanfield_module.ProductState(state.u)]
+        _, state_mf_t = AtomicArrays.meanfield_module.timeevolution_field(T, S,
+           Om_R,
+           state0_mf, alg=VCABM(), reltol=1e-10, abstol=1e-12, maxiters=1e9)
+        # state = AtomicArrays.meanfield_module.steady_state_field(T, S, Om_R, 
+        #     state0_mf, alg=SSRootfind(), reltol=1e-10, abstol=1e-12)
+        # state_mf_t = [AtomicArrays.meanfield_module.ProductState(state.u)]
 
         if EQ_TYPE == "mpc"
             state0 = AtomicArrays.mpc_module.state_from_mf(state_mf_t[end], phi, theta, N)
@@ -129,8 +129,8 @@ using DelimitedFiles
             t_ind = length(T)
             _, _, _, sm_mat, _ = sigma_matrices_mpc(state_t, t_ind)
         elseif EQ_TYPE == "mf"
-            t_ind = 1
-            # t_ind = length(T)
+            # t_ind = 1
+            t_ind = length(T)
             _, _, _, sm_mat, _ = sigma_matrices_mf(state_mf_t, t_ind)
         end
 
@@ -144,14 +144,15 @@ using DelimitedFiles
     # Create collection of parameters
     arg_list = [
         [
-            dir_list[(i-1) ÷ NMAX^5 + 1],
-            delt_list[(i-1) ÷ NMAX^4 % NMAX + 1],
+            dir_list[(i-1) ÷ NMAX^4 + 1],
+            # delt_list[(i-1) ÷ NMAX^4 % NMAX + 1],
+            delt_list[1],
             Delt_list[(i-1) ÷ NMAX^3 % NMAX + 1],
             d_list[(i-1) ÷ NMAX^2 % NMAX + 1],
             L_list[(i-1) ÷ NMAX % NMAX + 1],
             E_list[(i-1) % NMAX + 1]
         ]
-     for i in 1:2*NMAX^5]
+     for i in 1:2*NMAX^4]
 end
 
 results_vec = @showprogress pmap(arg_list) do x 
@@ -300,7 +301,7 @@ data_dict_obj = Dict("E" => collect(E_list), "L" => collect(L_list),
 data_dict_fs = Dict("E" => collect(E_list), "L" => collect(L_list), 
                      "d" => collect(d_list), "delt" => collect(Delt_list), 
                      "dir" => [1, 2],
-                     "sigma_tot" => σ_tot,
+                     "sigma_tot" => real(σ_tot),
                      "order" => ["E", "L", "d", "delt", "dir"])
 data_dict_sig = Dict("E" => collect(E_list), "L" => collect(L_list), 
                      "d" => collect(d_list), "delt" => collect(Delt_list), 
@@ -314,9 +315,13 @@ save(PATH_DATA*"obj4D_freq_"*NAME_PART, data_dict_obj)
 save(PATH_DATA*"fs4D_freq_"*NAME_PART, data_dict_fs)
 save(PATH_DATA*"sig4D_freq_"*NAME_PART, data_dict_sig)
 
-data_dict_loaded = load(PATH_DATA*"obj4D_freq_"*NAME_PART)
-data_dict_loaded["obj"] == data_dict_obj["obj"]
+data_dict_loaded = load(PATH_DATA*"sig4D_freq_"*NAME_PART)
+data_dict_loaded["sigma_re"] == data_dict_sig["sigma_re"]
 
+fig, ax = PyPlot.subplots(ncols=1, nrows=1, figsize=(12, 9),
+        constrained_layout=true)
+ax.scatter(1:N, abs.(sigmas)[opt_idx, 1, :])
+display(fig)
 
 
 #write("../Data/test.bin", I)
