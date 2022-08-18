@@ -58,7 +58,6 @@ using DelimitedFiles
     const N = Nx * Ny * Nz
     const M = 1 # Number of excitations
     const μ = [(i < 0) ? [0, 0, 1.0] : [1.0, 0.0im, 0.0] for i = 1:Nx*Ny*Nz]
-    const γ_e = [1e-2 for i = 1:Nx*Ny*Nz]
 
     # Incident field parameters
     const E_kvec = 1.0 * k_0
@@ -78,7 +77,10 @@ using DelimitedFiles
         pos = vcat(pos_1, pos_2)
 
         δ_S = [(ind < Nx * Ny + 1) ? -0.5*Delt : 0.5*Delt for ind = 1:N]
-
+        # γ_e also changes due to the change of frequency
+        γ_e = [(i < Nx * Ny + 1) ? 
+                1e-2*(1.0 - 0.5*Delt/om_0)^3 : 1e-2*(1.0 + 0.5*Delt/om_0)^3 
+                for i = 1:N]
         S = SpinCollection(pos, μ; gammas=γ_e, deltas=δ_S)
 
         E_width = 0.3 * d * sqrt(Nx * Ny)
@@ -100,7 +102,7 @@ using DelimitedFiles
         E_vec = [em_inc_function(S.spins[k].position, E_inc) for k = 1:Nx*Ny*Nz]
         Om_R = AtomicArrays.field_module.rabi(E_vec, μ)
 
-        tmax = 5e4 #1. / minimum(abs.(GammaMatrix(S)))
+        tmax = 2e4 #1. / minimum(abs.(GammaMatrix(S)))
         T = [0:tmax/2:tmax;]
         # Initial state (Bloch state)
         phi = 0.0

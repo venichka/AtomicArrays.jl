@@ -82,6 +82,9 @@ t_tot = SharedArray{Float64,5}((NMAX,NMAX,NMAX,NMAX,2))
                                                                L/2])
     pos = vcat(pos_1, pos_2)
     δ_S = [(i < Nx*Ny + 1) ? -0.5*Delt : 0.5*Delt for i = 1:Nx*Ny*Nz]
+    γ_e = [(i < Nx * Ny + 1) ? 
+            1e-2*(1.0 - 0.5*Delt/om_0)^3 : 1e-2*(1.0 + 0.5*Delt/om_0)^3 
+            for i = 1:Nx*Ny*Nz]
     S = SpinCollection(pos,μ; gammas=γ_e, deltas=δ_S)
 
     if (kk == 1)

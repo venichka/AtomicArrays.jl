@@ -66,7 +66,9 @@ PyPlot.scatter3D(x_at, y_at, z_at)
 display(fig_1)
 
 μ = [(i < 0) ? [0, 0, 1.0] : [1.0, 0.0im, 0.0] for i = 1:N]
-γ_e = [1e-2 for i = 1:Nx*Ny*Nz]
+γ_e = [(i < Nx * Ny + 1) ? 
+        1e-2*(1.0 - 0.5*Delt/om_0)^3 : 1e-2*(1.0 + 0.5*Delt/om_0)^3 
+        for i = 1:N]
 δ_S = [(i < Nx*Ny + 1) ? -0.5*Delt : 0.5*Delt for i = 1:N]
 S = SpinCollection(pos, μ; gammas=γ_e, deltas=δ_S)
 # Collective effects
@@ -88,7 +90,9 @@ Threads.@threads for kkii in CartesianIndices((2, NMAX))
             L / 2])
     pos = vcat(pos_1, pos_2)
     μ = [(i < 0) ? [0, 0, 1.0] : [1.0, 0.0im, 0.0] for i = 1:Nx*Ny*Nz]
-    γ_e = [1e-2 for i = 1:Nx*Ny*Nz]
+    γ_e = [(i < Nx * Ny + 1) ? 
+            1e-2*(1.0 - 0.5*Delt/om_0)^3 : 1e-2*(1.0 + 0.5*Delt/om_0)^3 
+            for i = 1:N]
     δ_S = [(i < Nx*Ny + 1) ? 0.0 : Delt for i = 1:Nx*Ny*Nz]
     S = SpinCollection(pos, μ; gammas=γ_e, deltas=δ_S)
     if (kk == 1)
