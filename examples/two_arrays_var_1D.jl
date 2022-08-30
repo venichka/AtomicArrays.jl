@@ -1,4 +1,13 @@
 # Two arrays: nonreciprocity
+begin
+    if pwd()[end-14:end] == "AtomicArrays.jl"
+        PATH_ENV = "."
+    else
+        PATH_ENV = "../"
+    end
+end
+using Pkg
+Pkg.activate(PATH_ENV)
 
 using QuantumOptics
 using PyPlot
@@ -10,9 +19,6 @@ using AtomicArrays
 const EMField = AtomicArrays.field_module.EMField
 const sigma_matrices_mf = AtomicArrays.meanfield_module.sigma_matrices
 const sigma_matrices_mpc = AtomicArrays.mpc_module.sigma_matrices
-
-
-dag(x) = conj(transpose(x))
 
 
 const PATH_FIGS, PATH_DATA = AtomicArrays.misc_module.path()
@@ -35,8 +41,8 @@ const lam_0 = 1.0
 const k_0 = 2 * π / lam_0
 const om_0 = 2.0 * pi * c_light / lam_0
 
-const Nx = 10
-const Ny = 10
+const Nx = 8
+const Ny = 8
 const Nz = 2  # number of arrays
 const N = Nx * Ny * Nz
 const M = 1 # Number of excitations
@@ -155,7 +161,9 @@ Threads.@threads for kkii in CartesianIndices((2, NMAX))
 
     r_lim = 1000.0
     σ_tot[ii, kk] = AtomicArrays.field_module.forward_scattering(r_lim, E_inc,
-        S, sm_mat)
+        S, sm_mat) / AtomicArrays.field_module.forward_scattering_1particle(
+            r_lim, E_inc, γ_e[1]
+        )
     zlim = 500#0.7*(d+delt)*(Nx)
     n_samp = 5
     # t_tot[ii, kk], pnts = AtomicArrays.field_module.transmission_reg(
@@ -226,7 +234,7 @@ function scatt_fig(var, result)
     # ax.set_title("Scattering: 0, π")
     ax.legend()
     # ax.text(var[NMAX÷6], maximum(result) / 2, params_text, fontsize=12, va="center")
-    fig.savefig(PATH_FIGS * "Evar_"*string(Nx)*"x"*string(Ny)*"_RL_"*LAT_TYPE*"_"*EQ_TYPE*".pdf", dpi=300)
+    # fig.savefig(PATH_FIGS * "Evar_"*string(Nx)*"x"*string(Ny)*"_RL_"*LAT_TYPE*"_"*EQ_TYPE*".pdf", dpi=300)
     return fig
 end
 

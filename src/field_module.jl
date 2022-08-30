@@ -225,6 +225,41 @@ end
 
 
 """
+field_module.forward_scattering_1particle(r_lim::Number, E::Field,
+                                            γ::Number; Δ::Number = 0.0)
+Computes forward scattering in k_vec of E_in direction of 1 atom.
+Note that forward scattering is normalized.
+# Arguments
+* `r_lim`: Distance at which we observe scattering (must be >> λ)
+* `E`: Incident EM field parameters.
+* `γ`: spontaneous decay rate of an atom.
+* `Δ`: detuning
+# Output
+* `σ_{tot}`, Float64: total scattering (due to optical theorem) from the system
+             (must be a positive number)
+"""
+function forward_scattering_1particle(r_lim::Number, E::Field,
+                                      γ::Number; Δ::Number = 0.0)
+    # TODO: k in Green's tensor and in scattered field
+    K = E.module_k
+    θ, φ = E.angle_k
+    E_0 = E.amplitude
+    k_vec = K*[sin(θ), cos(θ)*sin(φ), cos(θ)*cos(φ)]
+    polar = E.polarisation
+    r = r_lim*[sin(θ), cos(θ)*sin(φ), cos(θ)*cos(φ)]
+    # atom
+    r_0 = [0., 0., 0.]  # coordinates of an atom
+    Ω_R = rabi([plane(r_0, E)], [polar])[1]
+    σ = 2.0im * (γ - 2.0im*Δ)*conj(Ω_R) / (γ^2 + 4*Δ^2 + 8*abs(Ω_R)^2)
+    C = 3.0/4.0.*γ   # (k_0/4.0/pi) * 3.0*pi/k_0.*γ_e./(norm.(μ).^2)
+                     # took into account factor k/(4π) in Green Tensor
+    # Scattered field
+    E_sc = C*σ*GreenTensor(r - r_0, K)*polar
+    return (4π/K * imag(r_lim/E_0/exp(im*k_vec'*(r-E.position_0)) .* polar'*E_sc))[1]
+end
+
+
+"""
 field_module.objective(scatt_dir_1, scatt_dir_2)
 Computes the objective function for optimisation problem:
 # Arguments
