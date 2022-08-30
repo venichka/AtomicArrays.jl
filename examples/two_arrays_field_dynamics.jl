@@ -36,7 +36,7 @@ const LAT_TYPE = "freq"
 const em_inc_function = AtomicArrays.field_module.plane
 const NMAX = 100
 const NMAX_T = 5
-const DIRECTION = "R"
+const DIRECTION = "L"
 
 """Parameters"""
 const c_light = 1.0
@@ -460,20 +460,20 @@ elseif VIEW == "x-z"
     ticks_I = range(0, 3, 5)
     ticks_E = range(-1.0, 1.0, 5)
     ticks_Et = range(-2.0, 2.0, 5)
-    c1 = axs[1].contourf(z, x, I, 30, levels=levels_I)
+    c1 = axs[1].contourf(z, x, I, 30, levels=levels_I, cmap="BuPu")
     axs[1].set_xlabel("z")
     axs[1].set_ylabel("x")
-    fig_2.colorbar(c1, ax=axs[1], label=L"I_{tot} / |E_0|^2", ticks=ticks_I)
-    c2 = axs[2].contourf(z, x, E_sc, 30, levels=levels_f)
+    fig_2.colorbar(c1, ax=axs[1], label=L"I_{tot} / I_0", ticks=ticks_I)
+    c2 = axs[2].contourf(z, x, E_sc, 30, levels=levels_f, cmap="PuOr")
     axs[2].set_xlabel("z")
     fig_2.colorbar(c2, ax=axs[2], label=L"Re(E_{sc} / E_0)", ticks=ticks_E)
-    c3 = axs[3].contourf(z, x, E_tot, 30, levels=levels_ft)
+    c3 = axs[3].contourf(z, x, E_tot, 30, levels=levels_ft, cmap="PuOr")
     axs[3].set_xlabel("z")
     fig_2.colorbar(c3, ax=axs[3], label=L"Re(E_{tot} / E_0)", ticks=ticks_Et)
     for p in pos
-        axs[1].plot(p[3],p[1],"o",color="w",ms=4)
-        axs[2].plot(p[3],p[1],"o",color="w",ms=4)
-        axs[3].plot(p[3],p[1],"o",color="w",ms=4)
+        axs[1].plot(p[3],p[1],"o",color="black",ms=4)
+        axs[2].plot(p[3],p[1],"o",color="black",ms=4)
+        axs[3].plot(p[3],p[1],"o",color="black",ms=4)
     end
 end
 
@@ -614,7 +614,7 @@ fig
 
 fig.savefig("/home/nikita/Documents/Work/Projects/two_arrays/Figs/figs_lone/dynamics_N10_RL_lat.pdf", dpi=300)
 
-fig_2.savefig(PATH_FIGS * "scatt2D_"*string(Nx)*"x"*string(Ny)*"_"*EQ_TYPE*"_opt"*string(DIRECTION)*".png", dpi=300)
+fig_2.savefig(PATH_FIGS * "scatt2D_"*string(Nx)*"x"*string(Ny)*"_"*EQ_TYPE*"_opt"*string(DIRECTION)*"_1.png", dpi=300)
 
 fig_5.savefig(PATH_FIGS * "field1D_"*string(Nx)*"x"*string(Ny)*"_"*EQ_TYPE*"_opt"*string(DIRECTION)*".pdf", dpi=300)
 

@@ -199,6 +199,7 @@ end
 field_module.forward_scattering(r_lim::Number, E::Field, S::SpinCollection,
                                 sigmam::Vector)
 Computes forward scattering in k_vec of E_in direction.
+Note that forward scattering is normalized.
 # Arguments
 * `r_lim`: Distance at which we observe scattering (must be >> λ)
 * `E`: Incident EM field parameters.
@@ -214,11 +215,12 @@ function forward_scattering(r_lim::Number, E::Field,
     # TODO: k in Green's tensor and in scattered field
     K = E.module_k
     θ, φ = E.angle_k
+    E_0 = E.amplitude
     k_vec = K*[sin(θ), cos(θ)*sin(φ), cos(θ)*cos(φ)]
     polar = E.polarisation
     r = r_lim*[sin(θ), cos(θ)*sin(φ), cos(θ)*cos(φ)]
     E_sc = scattered_field(r, S, sigmam, K)
-    return (4π/K * imag(r_lim/exp(im*k_vec'*(r-E.position_0)) .* polar'*E_sc))[1]
+    return (4π/K * imag(r_lim/E_0/exp(im*k_vec'*(r-E.position_0)) .* polar'*E_sc))[1]
 end
 
 
