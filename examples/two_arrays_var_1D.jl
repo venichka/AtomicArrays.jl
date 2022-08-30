@@ -31,6 +31,7 @@ const em_inc_function = AtomicArrays.field_module.plane
 const NMAX = 100
 const NMAX_T = 41
 σ_tot = zeros(NMAX, 2)
+σ_tot_1a = zeros(NMAX, 2)
 t_tot = zeros(NMAX, 2)
 delt_iter = range(-0.1, 0.1, NMAX)
 E_iter = (10.0) .^ (range(-3.0, -1.0, NMAX))
@@ -41,17 +42,17 @@ const lam_0 = 1.0
 const k_0 = 2 * π / lam_0
 const om_0 = 2.0 * pi * c_light / lam_0
 
-const Nx = 8
-const Ny = 8
+const Nx = 10
+const Ny = 10
 const Nz = 2  # number of arrays
 const N = Nx * Ny * Nz
 const M = 1 # Number of excitations
-d = 0.24444
-delt = 0. #0.156#0.0871859
-Delt = 0.022222
+d = 0.28888#0.24444
+delt = 0.11555#0. #0.156#0.0871859
+Delt = -0.01#0.022222
 d_1 = d
 d_2 = d + delt
-L = 0.62222 #0.338#0.335678
+L = 0.10444#0.62222 #0.338#0.335678
 
 pos_1 = geometry_module.rectangle(d_1, d_1; Nx=Nx, Ny=Ny,
     position_0=[-(Nx - 1) * d_1 / 2,
@@ -161,9 +162,10 @@ Threads.@threads for kkii in CartesianIndices((2, NMAX))
 
     r_lim = 1000.0
     σ_tot[ii, kk] = AtomicArrays.field_module.forward_scattering(r_lim, E_inc,
-        S, sm_mat) / AtomicArrays.field_module.forward_scattering_1particle(
-            r_lim, E_inc, γ_e[1]
-        )
+                                              S, sm_mat) 
+    σ_tot_1a[ii, kk] = AtomicArrays.field_module.forward_scattering_1particle(
+                                                 r_lim, E_inc, γ_e[1])
+        
     zlim = 500#0.7*(d+delt)*(Nx)
     n_samp = 5
     # t_tot[ii, kk], pnts = AtomicArrays.field_module.transmission_reg(
@@ -221,20 +223,38 @@ function allparam_fig(var, results)
 end
 
 
-function scatt_fig(var, result)
+function scatt_fig_norm(var, result)
     obj = AtomicArrays.field_module.objective(result[:, 1], result[:, 2])
     fig, ax = PyPlot.subplots(ncols=1, nrows=1, figsize=(6, 3),
         constrained_layout=true)
-    ax.plot(var, result[:, 1], color="r", label=L"\sigma_0")
-    ax.plot(var, result[:, 2], color="b", label=L"\sigma_\pi")
-    ax.plot(var, obj, "--", color="black", label=L"\mathcal{M}")
+    ax.plot(var/γ_e[1], result[:, 1], color="r", label=L"\sigma_\mathrm{tot}^0")
+    ax.plot(var/γ_e[1], result[:, 2], color="b", label=L"\sigma_\mathrm{tot}^\pi")
+    ax.plot(var/γ_e[1], obj, "--", color="black", label=L"\mathcal{M}")
     ax.set_xscale("log")
-    ax.set_xlabel(L"E_0")
-    ax.set_ylabel(L"\sigma_{0,\pi}")
+    ax.set_xlabel(L"|\Omega_R| / \gamma_0")
+    ax.set_ylabel(L"\sigma_\mathrm{tot} / \sigma_\mathrm{tot}^a")
     # ax.set_title("Scattering: 0, π")
     ax.legend()
     # ax.text(var[NMAX÷6], maximum(result) / 2, params_text, fontsize=12, va="center")
     # fig.savefig(PATH_FIGS * "Evar_"*string(Nx)*"x"*string(Ny)*"_RL_"*LAT_TYPE*"_"*EQ_TYPE*".pdf", dpi=300)
+    return fig
+end
+
+
+function scatt_fig_unnorm(var, result)
+    obj = AtomicArrays.field_module.objective(result[:, 1], result[:, 2])
+    fig, ax = PyPlot.subplots(ncols=1, nrows=1, figsize=(6, 3),
+        constrained_layout=true)
+    ax.plot(var/γ_e[1], result[:, 1], color="r", label=L"\sigma_\mathrm{tot}^0")
+    ax.plot(var/γ_e[1], result[:, 2], color="b", label=L"\sigma_\mathrm{tot}^\pi")
+    ax.plot(var/γ_e[1], obj, "--", color="black", label=L"\mathcal{M}")
+    ax.set_xscale("log")
+    ax.set_xlabel(L"|\Omega_R| / \gamma_0")
+    ax.set_ylabel(L"\sigma_\mathrm{tot}")
+    # ax.set_title("Scattering: 0, π")
+    ax.legend()
+    # ax.text(var[NMAX÷6], maximum(result) / 2, params_text, fontsize=12, va="center")
+    # fig.savefig(PATH_FIGS * "Evar_"*string(Nx)*"x"*string(Ny)*"_RL_"*LAT_TYPE*"_"*EQ_TYPE*"_un.pdf", dpi=300)
     return fig
 end
 
@@ -265,5 +285,28 @@ end
 fig_1 = allparam_fig(E_iter, [σ_tot, t_tot, obj, efficiency])
 display(fig_1)
 
-fig_2 = scatt_fig(E_iter, σ_tot)
+fig_2 = scatt_fig_norm(E_iter, σ_tot ./ σ_tot_1a)
 display(fig_2)
+
+fig_3 = scatt_fig_unnorm(E_iter, σ_tot)
+display(fig_2)
+
+"""Writing DATA"""
+
+using HDF5, FileIO
+
+data_dict_fs = Dict("E" => collect(E_iter),
+                     "dir" => [1, 2],
+                     "sigma_tot_un" => real(σ_tot),
+                     "order" => ["E", "dir"])
+data_dict_fs_1a = Dict("E" => collect(E_iter), 
+                     "dir" => [1, 2],
+                     "sigma_tot_1a" => real(σ_tot_1a),
+                     "order" => ["E", "dir"])
+
+NAME_PART = string(Nx)*"x"*string(Ny)*"_"*EQ_TYPE*".h5"
+save(PATH_DATA*"fs1D_freq_"*NAME_PART, data_dict_fs)
+save(PATH_DATA*"fs1D_1a_freq_"*NAME_PART, data_dict_fs)
+
+data_dict_loaded = load(PATH_DATA*"fs1D_freq_"*NAME_PART)
+data_dict_loaded["sigma_tot_un"] == data_dict_fs["sigma_tot_un"]
