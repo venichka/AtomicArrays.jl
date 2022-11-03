@@ -23,6 +23,7 @@ const sigma_matrices_mpc = AtomicArrays.mpc_module.sigma_matrices
 
 const PATH_FIGS, PATH_DATA = AtomicArrays.misc_module.path()
 
+const DIM_VARS = 1
 const EQ_TYPE = "mf"
 const LAT_TYPE = "freq"
 
@@ -304,9 +305,10 @@ data_dict_fs_1a = Dict("E" => collect(E_iter),
                      "sigma_tot_1a" => real(σ_tot_1a),
                      "order" => ["E", "dir"])
 
-NAME_PART = string(Nx)*"x"*string(Ny)*"_"*EQ_TYPE*".h5"
-save(PATH_DATA*"fs1D_freq_"*NAME_PART, data_dict_fs)
-save(PATH_DATA*"fs1D_1a_freq_"*NAME_PART, data_dict_fs)
+NAME_PART = (string(DIM_VARS) * "D_" * LAT_TYPE * "_" *
+             string(Nx)*"x"*string(Ny)*"_"*EQ_TYPE*".h5")
+save(PATH_DATA*"fs"*NAME_PART, data_dict_fs)
+save(PATH_DATA*"fs_1a_"*NAME_PART, data_dict_fs_1a)
 
 data_dict_loaded = load(PATH_DATA*"fs1D_freq_"*NAME_PART)
 data_dict_loaded["sigma_tot_un"] == data_dict_fs["sigma_tot_un"]

@@ -134,10 +134,46 @@ begin
 end
 
 
+"""Write into file"""
+
+using HDF5, FileIO
+
+data_dict = Dict("N_j" => collect(N_j_list),
+                 "gam_min" => real(gam_min),
+                 "gam_max" => real(gam_max),
+                 )
+
+FILENAME = "gammas_varN_opt2arr.h5"
+save(PATH_DATA*FILENAME, data_dict)
+
+data_dict_loaded = load(PATH_DATA*FILENAME)
+data_dict_loaded["gam_min"] == data_dict["gam_min"]
+
+
+"""Reading from file"""
+
+begin
+    using Interpolations
+    FILENAME = "gammas_varN_opt2arr.h5"
+    data_dict_loaded = load(PATH_DATA*FILENAME)
+
+    # Interpolation
+    gam_min_l = LinearInterpolation((data_dict_loaded["N_j"]),
+                                 data_dict_loaded["gam_min"])
+    gam_max_l = LinearInterpolation((data_dict_loaded["N_j"]),
+                                 data_dict_loaded["gam_max"])
+
+    # Variables
+    N_j_l = range(data_dict_loaded["N_j"][1], data_dict_loaded["N_j"][end], NMAX)
+    "Interpolation's done"
+end
+
+
 "Plotting"
 
 function gammas_plot()
     GLMakie.activate!()
+    # CairoMakie.activate!()
     f = Figure(resolution=(800, 400))
 
     N_a = Nz*N_j_list[end]^2
@@ -172,4 +208,44 @@ function gammas_plot()
     return f
 end
 
+
+function gammas_plot_from_file()
+    # GLMakie.activate!()
+    CairoMakie.activate!()
+    f = Figure(resolution=(800, 400))
+
+    N_a = Nz*N_j_l[end]^2
+
+    # LsqFit
+    m(t, p) = log10(γ_e[1]) .- p[1] * log10.(t)
+    p0 = [0.5]
+    fit = curve_fit(m, N_j_l.^2 .* Nz, log10.(gam_min_l(N_j_l)), p0)
+    # fit parameters and confidence interval
+    p = fit.param
+    print(p)
+    confidence_interval(fit, 0.1)
+
+    Axis(f[1, 1],
+         xlabel=L"Number of atoms$$",
+         ylabel=L"$\gamma_D / \gamma_0$",
+         xlabelsize = 28, ylabelsize = 28,
+         titlesize = 30,
+         xticklabelsize = 22,
+         yticklabelsize = 22,
+         # xscale = log10,
+         yscale = log10,
+         )
+    scatter!(f[1, 1], N_j_l.^2 .* Nz, gam_min_l(N_j_l) / γ_e[1],
+             color=:red, markersize=10)
+    lines!(f[1, 1], 1:0.1:N_a, 10.0.^m(1:0.1:N_a, fit.param) / γ_e[1],
+             color=:black, linewidth=4)
+    # scatter!(f[1, 1], N_j_list.^2 .* Nz, gam_max,
+    #          color=:blue, markersize=10)
+    save((PATH_FIGS * "gammaD_" * LAT_TYPE *
+                    "_N_opt10.pdf"), f) # here, you save your figure.
+    return f
+end
+
 gammas_plot()
+
+gammas_plot_from_file()

@@ -228,6 +228,48 @@ end
 
 dict_sig["order"]
 
+
+"""Phases analysis"""
+
+arg_σ(E, L, d, delt, dir) = angle.(σ_re(E, L, d, delt, dir, 1:N) .+
+                             im*σ_im(E, L, d, delt, dir, 1:N))
+
+arg_σ_0_v_1 = arg_σ(E_opt, L_opt, a_1_opt, delt_opt, 0)[1:N÷2]
+arg_σ_0_v_2 = arg_σ(E_opt, L_opt, a_1_opt, delt_opt, 0)[N÷2+1:N]
+arg_σ_pi_v_1 = arg_σ(E_opt, L_opt, a_1_opt, delt_opt, 1)[1:N÷2]
+arg_σ_pi_v_2 = arg_σ(E_opt, L_opt, a_1_opt, delt_opt, 1)[N÷2+1:N]
+
+# Average values of phases in arrays
+
+using Statistics
+
+"""
+To correctly compute statistical characteristics
+"""
+function unify_args(args)
+    max_arg = maximum(args)
+    args[args .< max_arg - 1.5*pi] .+= 2*pi
+    return args
+end
+
+
+# mean values
+mean_0_1 = Statistics.mean(unify_args(arg_σ_0_v_1))
+mean_0_2 = Statistics.mean(unify_args(arg_σ_0_v_2))
+mean_pi_1 = Statistics.mean(unify_args(arg_σ_pi_v_1))
+mean_pi_2 = Statistics.mean(unify_args(arg_σ_pi_v_2))
+
+# mean_0_1 = Statistics.mean(arg_σ_0_v_1)
+# mean_0_2 = Statistics.mean(arg_σ_0_v_2)
+# mean_pi_1 = Statistics.mean(arg_σ_pi_v_1)
+# mean_pi_2 = Statistics.mean(arg_σ_pi_v_2)
+
+# variance
+var_0_1 = Statistics.var(arg_σ_0_v_1; corrected=true)
+var_0_2 = Statistics.var(arg_σ_0_v_2; corrected=true)
+var_pi_1 = Statistics.var(arg_σ_pi_v_1; corrected=true)
+var_pi_2 = Statistics.var(arg_σ_pi_v_2; corrected=true)
+
 """Plotting"""
 
 function phases_unitcircle()
@@ -286,6 +328,29 @@ function phases_unitcircle()
         return angle.(sigms)
     end
 
+    # Mean values
+
+    mean_re_1 = lift(sl_E.value, sl_L.value, sl_a.value,
+                    sl_delt.value, sl_dir.value) do x, y, z, α, DIR
+        args = unify_args(arg_σ(x, y, z, α, DIR)[1:N÷2])
+        return cos.(Statistics.mean(args))
+    end
+    mean_im_1 = lift(sl_E.value, sl_L.value, sl_a.value,
+                    sl_delt.value, sl_dir.value) do x, y, z, α, DIR
+        args = unify_args(arg_σ(x, y, z, α, DIR)[1:N÷2])
+        return sin.(Statistics.mean(args))
+    end
+    mean_re_2 = lift(sl_E.value, sl_L.value, sl_a.value,
+                    sl_delt.value, sl_dir.value) do x, y, z, α, DIR
+        args = unify_args(arg_σ(x, y, z, α, DIR)[1+N÷2:N])
+        return cos.(Statistics.mean(args))
+    end
+    mean_im_2 = lift(sl_E.value, sl_L.value, sl_a.value,
+                    sl_delt.value, sl_dir.value) do x, y, z, α, DIR
+        args = unify_args(arg_σ(x, y, z, α, DIR)[1+N÷2:N])
+        return sin.(Statistics.mean(args))
+    end
+
      # Plot
     lines(f[1, 1], Circle(Point2f(0), 1),
         axis=(title=L"$\sigma$",
@@ -294,9 +359,15 @@ function phases_unitcircle()
             titlesize=30), 
             color = :lightgray)
     scatter!(f[1, 1], arr_re_1, arr_im_1,
-        color=:red, markersize=10)
+        color=(:red, 0.1), markersize=20)
     scatter!(f[1, 1], arr_re_2, arr_im_2,
-        color=:blue, markersize=10)
+        color=(:blue, 0.1), markersize=20)
+    scatter!(f[1, 1], mean_re_1, mean_im_1,
+        color=(:crimson, 1.0), markersize=44, marker=:star8,
+             glowwidth=5, glowcolor=(:white, 1.0), strokewidth=0)
+    scatter!(f[1, 1], mean_re_2, mean_im_2,
+        color=(:royalblue4, 1.0), markersize=44, marker=:xcross,
+             glowwidth=5, glowcolor=(:white, 1.0), strokewidth=0)
 
     scatter(f[1, 2], 1:N÷2, arr_arg_1,
         axis=(title=L"arg$(\sigma)$",
@@ -441,8 +512,18 @@ function phases_unitcircle_pub()
     arr_re_2_π = real(sigms_π[1+N÷2:N])
     arr_im_2_π = imag(sigms_π[1+N÷2:N])
 
+    # Mean values
+    mean_0_re_1 = cos.(mean_0_1)
+    mean_0_im_1 = sin.(mean_0_1)
+    mean_0_re_2 = cos.(mean_0_2)
+    mean_0_im_2 = sin.(mean_0_2)
+    mean_pi_re_1 = cos.(mean_pi_1)
+    mean_pi_im_1 = sin.(mean_pi_1)
+    mean_pi_re_2 = cos.(mean_pi_2)
+    mean_pi_im_2 = sin.(mean_pi_2)
+
      # Plot
-    ax1 = Axis(fig_uc[1, 1], title=L"Direction: $0$",
+    ax1 = Axis(fig_uc[1, 1], title=L"Direction: $f$",
             xlabel=L"\Re \sigma / |\sigma|",
             ylabel=L"\Im \sigma / |\sigma|",
             xlabelsize=28, ylabelsize=28,
@@ -455,10 +536,16 @@ function phases_unitcircle_pub()
         color=:red, markersize=10, label=L"array $1$")
     scatter!(fig_uc[1, 1], arr_re_2_0, arr_im_2_0,
         color=:blue, markersize=10, label=L"array $2$")
+    scatter!(fig_uc[1, 1], mean_0_re_1, mean_0_im_1,
+        color=(:crimson, 1.0), markersize=44, marker=:star8,
+             strokewidth=1, strokecolor=:white)
+    scatter!(fig_uc[1, 1], mean_0_re_2, mean_0_im_2,
+        color=(:royalblue4, 1.0), markersize=44, marker=:xcross,
+             strokewidth=1, strokecolor=:white)
 
     axislegend()
 
-    ax2 = Axis(fig_uc[1, 2], title=L"Direction: $\pi$",
+    ax2 = Axis(fig_uc[1, 2], title=L"Direction: $b$",
             xlabel=L"\Re \sigma / |\sigma|",
             ylabel=L"\Im \sigma / |\sigma|",
             xlabelsize=28, ylabelsize=28,
@@ -471,16 +558,22 @@ function phases_unitcircle_pub()
         color=:red, markersize=10, label=L"array $1$")
     scatter!(fig_uc[1, 2], arr_re_2_π, arr_im_2_π,
         color=:blue, markersize=10, label=L"array $2$")
+    scatter!(fig_uc[1, 2], mean_pi_re_1, mean_pi_im_1,
+        color=(:crimson, 1.0), markersize=44, marker=:star8,
+             strokewidth=1, strokecolor=:white)
+    scatter!(fig_uc[1, 2], mean_pi_re_2, mean_pi_im_2,
+        color=(:royalblue4, 1.0), markersize=44, marker=:xcross,
+             strokewidth=1, strokecolor=:white)
 
     axislegend()
 
     # Adding letters
     ga = fig_uc[1, 1] = GridLayout()
     gb = fig_uc[1, 2] = GridLayout()
-    for (label, layout) in zip([L"\mathrm{a})", L"\mathrm{b})"], [ga, gb])
+    for (label, layout) in zip(["(a)", "(b)"], [ga, gb])
         Label(layout[1, 1, TopLeft()], label,
               textsize = 30,
-              # font = "TeX Gyre Heros Bold",
+              font = "TeX Gyre Heros Bold",
               padding = (0, 40, 20, 0),
               halign = :right)
     end
@@ -504,6 +597,9 @@ function phases_amplitudes_lattice_pub(DIR)
     CairoMakie.activate!()
     # GLMakie.activate!()
     f = Figure(resolution=(1200,1000))
+
+    ticks_arg = [L"-\pi", L"-\frac{\pi}{2}", L"0", L"\frac{\pi}{2}", L"\pi"]
+    args_num = range(-pi, pi, 5)
 
     arr_abs_1 = abs.(σ_re(E_opt, L_opt, a_1_opt, delt_opt, dir, 1:N÷2) .+
         im*σ_im(E_opt, L_opt, a_1_opt, delt_opt, dir, 1:N÷2))
@@ -541,9 +637,9 @@ function phases_amplitudes_lattice_pub(DIR)
         xticklabelsize=22,
         yticklabelsize=22)
     sc21 = scatter!(x[1:N÷2], y[1:N÷2], markersize = 30, colorrange=(-pi, pi),
-                        color = arr_arg_1, colormap=:rainbow1)
+                        color = arr_arg_1, colormap=:hsv)
     Colorbar(f[2, 2], sc21, label = L"arg$(\sigma_j)$", height = Relative(1),
-             labelsize=28, ticklabelsize=18)
+             labelsize=28, ticklabelsize=22, ticks=(args_num, ticks_arg))
 
     Axis(f[1, 3], title=L"Array 2$$",
         xlabel=L"x/\lambda_0",
@@ -569,12 +665,30 @@ function phases_amplitudes_lattice_pub(DIR)
         xticklabelsize=22,
         yticklabelsize=22)
     sc23 = scatter!(x[1:N÷2], y[1:N÷2], markersize = 30, colorrange=(-pi, pi),
-                        color = arr_arg_2, colormap=:rainbow1)
+                        color = arr_arg_2, colormap=:hsv)
     Colorbar(f[2, 4], sc23, label = L"arg$(\sigma_j)$", height = Relative(1),
-             labelsize=28, ticklabelsize=18)
+             labelsize=28, ticklabelsize=22, ticks=(args_num, ticks_arg))
+
+    # Adding letters
+    ga = f[1, 1] = GridLayout()
+    gb = f[1, 3] = GridLayout()
+    gc = f[2, 1] = GridLayout()
+    gd = f[2, 3] = GridLayout()
+    for (label, layout) in zip(["(a)", "(b)",
+                                "(c)", "(d)"],
+                               [ga, gb, gc, gd])
+        Label(layout[1, 1, TopLeft()], label,
+              textsize = 30,
+              font = "TeX Gyre Heros Bold",
+              padding = (0, 20, 0, 0),
+              halign = :right)
+    end
+
+    colsize!(f.layout, 1, Auto(1.))
+
 
     save((PATH_FIGS * "sig_abs_arg_" * LAT_TYPE * "_" * string(Nx)
-                    * "x" * string(Ny) * "_" * EQ_TYPE * "_" * DIR * ".pdf"), f) # here, you save your figure.
+                    * "x" * string(Ny) * "_" * EQ_TYPE * "_" * DIR * "_let.pdf"), f) # here, you save your figure.
     return f
 end
 
