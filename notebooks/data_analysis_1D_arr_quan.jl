@@ -84,7 +84,8 @@ end
 begin
     # File names
     args_files = [Nx, Ny, EQ_TYPE, DIM_VARS, PATH_DATA]
-    const FILE_Q = filename_create("quantDict_Efreq", args_files)
+    # const FILE_Q = filename_create("quantDict_Efreq", args_files)
+    const FILE_Q = filename_create("quantDict", args_files)
 
     # Loading data
     dict_q = load_dict(PATH_DATA, FILE_Q)
@@ -94,7 +95,7 @@ end
 
 begin
     # Interpolation
-    var_str = "w_L"
+    var_str = "E"
 
     fs_tot = LinearInterpolation((dict_q[var_str], [0, 1]), dict_q["sigma_tot_un"])
     fs_tot_1a = LinearInterpolation((dict_q[var_str], [0, 1]), dict_q["sigma_tot_1a"])
@@ -287,6 +288,8 @@ function misc_results()
     # GLMakie.activate!()
 
     f = Figure(resolution=(600,540))
+
+    E = var_str
 
     # Calculating functions to plot
     obj = AtomicArrays.field.objective(fs_tot(E, 0), fs_tot(E, 1))
