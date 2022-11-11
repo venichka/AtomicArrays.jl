@@ -28,7 +28,7 @@ using DelimitedFiles
     import EllipsisNotation: Ellipsis
     const .. = Ellipsis()
 
-    const PATH_FIGS, PATH_DATA = AtomicArrays.misc_module.path()
+    const PATH_FIGS, PATH_DATA = AtomicArrays.misc.path()
     const LAT_TYPE = "lat"
 
     const NMAX = 20
@@ -68,11 +68,11 @@ using DelimitedFiles
         γ_e = [1e-2 for i = 1:N]
         δ_S = [(ind < N_j * N_j) ? -0.5*Delt : 0.5*Delt for ind = 1:N]
 
-        pos_1 = AtomicArrays.geometry_module.rectangle(d_1, d_1; Nx=N_j, Ny=N_j,
+        pos_1 = AtomicArrays.geometry.rectangle(d_1, d_1; Nx=N_j, Ny=N_j,
             position_0=[-(N_j - 1) * d_1 / 2,
                 -(N_j - 1) * d_1 / 2,
                 -L / 2])
-        pos_2 = AtomicArrays.geometry_module.rectangle(d_2, d_2; Nx=N_j, Ny=N_j,
+        pos_2 = AtomicArrays.geometry.rectangle(d_2, d_2; Nx=N_j, Ny=N_j,
             position_0=[-(N_j - 1) * d_2 / 2,
                 -(N_j - 1) * d_2 / 2,
                 L / 2])

@@ -3,11 +3,11 @@ using CollectiveSpins, QuantumOptics, Sundials, LSODA, LinearAlgebra
 
 using Revise
 using AtomicArrays
-const EMField = AtomicArrays.field_module.EMField
-const sigma_matrices = AtomicArrays.meanfield_module.sigma_matrices
-const mapexpect = AtomicArrays.meanfield_module.mapexpect
-const mapexpect_mpc = AtomicArrays.mpc_module.mapexpect
-const sigma_matrices_mpc = AtomicArrays.mpc_module.sigma_matrices
+const EMField = AtomicArrays.field.EMField
+const sigma_matrices = AtomicArrays.meanfield.sigma_matrices
+const mapexpect = AtomicArrays.meanfield.mapexpect
+const mapexpect_mpc = AtomicArrays.mpc.mapexpect
+const sigma_matrices_mpc = AtomicArrays.mpc.sigma_matrices
 const ProductState = CollectiveSpins.meanfield.ProductState
 const splitstate = CollectiveSpins.meanfield.splitstate
 
@@ -144,7 +144,7 @@ const Ny = 2
 N = Nx*Ny
 const d = 0.3
 const L = 0.6
-const pos = AtomicArrays.geometry_module.rectangle(d, d; Nx=Nx, Ny=Ny,
+const pos = AtomicArrays.geometry.rectangle(d, d; Nx=Nx, Ny=Ny,
                                                position_0=[-(Nx-1)*d/2, 
                                                            -(Ny-1)*d/2,
                                                            -L/2])
@@ -173,12 +173,12 @@ end
 
 incident_field = EMField(E_ampl, E_kvec, E_angle, E_polar;
                      position_0 = E_pos0, waist_radius = E_width)
-#em_inc_function = AtomicArrays.field_module.gauss
-em_inc_function = AtomicArrays.field_module.plane
+#em_inc_function = AtomicArrays.field.gauss
+em_inc_function = AtomicArrays.field.plane
 
 E_vec = [em_inc_function(S.spins[k].position,incident_field)
          for k = 1:Nx*Ny]
-Om_R = AtomicArrays.field_module.rabi(E_vec, μ)
+Om_R = AtomicArrays.field.rabi(E_vec, μ)
 
 tmax = 10000.
 const T = [0:tmax/100:tmax;]

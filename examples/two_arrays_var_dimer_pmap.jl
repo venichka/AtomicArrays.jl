@@ -24,17 +24,17 @@ using DelimitedFiles
     using Revise
     using AtomicArrays
 
-    const EMField = AtomicArrays.field_module.EMField
-    const sigma_matrices_mf = AtomicArrays.meanfield_module.sigma_matrices
-    const sigma_matrices_mpc = AtomicArrays.mpc_module.sigma_matrices
+    const EMField = AtomicArrays.field.EMField
+    const sigma_matrices_mf = AtomicArrays.meanfield.sigma_matrices
+    const sigma_matrices_mpc = AtomicArrays.mpc.sigma_matrices
 
     import EllipsisNotation: Ellipsis
     const .. = Ellipsis()
 
-    PATH_FIGS, PATH_DATA = AtomicArrays.misc_module.path()
+    PATH_FIGS, PATH_DATA = AtomicArrays.misc.path()
 
-    #em_inc_function = AtomicArrays.field_module.gauss
-    const em_inc_function = AtomicArrays.field_module.plane
+    #em_inc_function = AtomicArrays.field.gauss
+    const em_inc_function = AtomicArrays.field.plane
     const NMAX = 10
     const NMAX_T = 41
     dir_list = ["right", "left"]
@@ -65,14 +65,14 @@ using DelimitedFiles
     function total_scattering(DIRECTION, delt, a_2, a_1, L, E_ampl)
         b_2 = a_2
         b_1 = a_1 + delt
-        pos_1 = AtomicArrays.geometry_module.dimer_square_1(a_1, a_2; 
+        pos_1 = AtomicArrays.geometry.dimer_square_1(a_1, a_2; 
                                         Nx=Nx, Ny=Ny,
                                         position_0=[
                                           -0.5*((Nx÷2)*a_1 + (Nx-1)÷2*a_2),
                                           -0.5*((Ny÷2)*a_1 + (Ny-1)÷2*a_2),
                                           -0.5*L
                                         ])
-        pos_2 = AtomicArrays.geometry_module.dimer_square_1(b_1, b_2; 
+        pos_2 = AtomicArrays.geometry.dimer_square_1(b_1, b_2; 
                                         Nx=Nx, Ny=Ny,
                                         position_0=[
                                           -0.5*((Nx÷2)*b_1 + (Nx-1)÷2*b_2),
@@ -102,7 +102,7 @@ using DelimitedFiles
 
         # E_field vector for Rabi constant computation
         E_vec = [em_inc_function(S.spins[k].position, E_inc) for k = 1:N]
-        Om_R = AtomicArrays.field_module.rabi(E_vec, μ)
+        Om_R = AtomicArrays.field.rabi(E_vec, μ)
 
         tmax = 80000. #1. / minimum(abs.(GammaMatrix(S)))
         T = [0:tmax/2:tmax;]
@@ -110,25 +110,25 @@ using DelimitedFiles
         phi = 0.0
         theta = pi / 1.0
         # Meanfield
-        state0_mf = AtomicArrays.meanfield_module.blochstate(phi, theta, N)
-        # state = AtomicArrays.meanfield_module.steady_state_field(T, S, Om_R, 
+        state0_mf = AtomicArrays.meanfield.blochstate(phi, theta, N)
+        # state = AtomicArrays.meanfield.steady_state_field(T, S, Om_R, 
                 # state0, alg=DynamicSS(AutoVern7(RadauIIA5(), nonstifftol=9//10)))
-        _, state_mf_t = AtomicArrays.meanfield_module.timeevolution_field(T, S,
+        _, state_mf_t = AtomicArrays.meanfield.timeevolution_field(T, S,
            Om_R,
            state0_mf, alg=VCABM(), reltol=1e-10, abstol=1e-12)
         #state0 = state_t_0[end]
-        #state = AtomicArrays.meanfield_module.steady_state_field(T, S, Om_R, 
+        #state = AtomicArrays.meanfield.steady_state_field(T, S, Om_R, 
         #        state0, alg=SSRootfind())
         # state_t = [CollectiveSpins.meanfield.ProductState(state.u)]
 
         # MPC
         # state0 = CollectiveSpins.mpc.blochstate(phi, theta, N)
-        # state0 = AtomicArrays.mpc_module.state_from_mf(state_mf_t[end], phi, theta, N)
+        # state0 = AtomicArrays.mpc.state_from_mf(state_mf_t[end], phi, theta, N)
  
-        # state = AtomicArrays.mpc_module.steady_state_field(T, S, Om_R, 
+        # state = AtomicArrays.mpc.steady_state_field(T, S, Om_R, 
         #        state0, alg=DynamicSS(VCABM()), reltol=1e-10, abstol=1e-12)
         # state_t = [CollectiveSpins.mpc.MPCState(state.u)]
-        # _, state_t = AtomicArrays.mpc_module.timeevolution_field(T, S, Om_R, state0, alg=Vern7());
+        # _, state_t = AtomicArrays.mpc.timeevolution_field(T, S, Om_R, state0, alg=Vern7());
 
         # t_ind = 1
         t_ind = length(T)
@@ -137,7 +137,7 @@ using DelimitedFiles
 
         """Forward scattering"""
         r_lim = 1000.0
-        return AtomicArrays.field_module.forward_scattering(r_lim, E_inc,
+        return AtomicArrays.field.forward_scattering(r_lim, E_inc,
             S, sm_mat)
     end
 
@@ -163,7 +163,7 @@ DIM = Int8(log(NMAX, length(arg_list)/2)) + 1
                 Tuple((i < DIM) ? NMAX : 2 
                         for i=1:DIM));
 
-#efficiency = AtomicArrays.field_module.objective(σ_tot[:,:,:,:,1], σ_tot[:,:,:,:,2])
+#efficiency = AtomicArrays.field.objective(σ_tot[:,:,:,:,1], σ_tot[:,:,:,:,2])
 efficiency = abs.(σ_tot[.., 1] - σ_tot[.., 2]) ./ abs.(σ_tot[.., 1] + σ_tot[.., 2]);
 opt_idx = indexin(maximum(efficiency), efficiency)[1]
 

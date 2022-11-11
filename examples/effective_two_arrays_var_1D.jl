@@ -7,10 +7,10 @@ using LinearAlgebra
 PyPlot.svg(true)
 
 using AtomicArrays
-const EMField = AtomicArrays.field_module.EMField
-const collective_shift_1array = AtomicArrays.effective_interaction_module.collective_shift_1array
-const sigma_matrices = AtomicArrays.meanfield_module.sigma_matrices
-const mapexpect = AtomicArrays.meanfield_module.mapexpect
+const EMField = AtomicArrays.field.EMField
+const collective_shift_1array = AtomicArrays.effective_interaction.collective_shift_1array
+const sigma_matrices = AtomicArrays.meanfield.sigma_matrices
+const mapexpect = AtomicArrays.meanfield.mapexpect
 
 
 dag(x) = conj(transpose(x))
@@ -19,8 +19,8 @@ dag(x) = conj(transpose(x))
 const PATH_FIG = "/Users/jimi/Google Drive/Work/In process/Projects/\
                   Collective_effects_QMS/Figures/two_arrays"
 
-#em_inc_function = AtomicArrays.field_module.gauss
-em_inc_function = AtomicArrays.field_module.plane
+#em_inc_function = AtomicArrays.field.gauss
+em_inc_function = AtomicArrays.field.plane
 const NMAX = 100
 const NMAX_T = 41
 σ_tot_e = zeros(NMAX,2)
@@ -65,8 +65,8 @@ E_inc = EMField(E_ampl, E_kvec, E_angle, E_polar;
 
 """Calculate the collective shift depending on the lattice constant"""
 
-Omega_1, Gamma_1 = AtomicArrays.effective_interaction_module.effective_constants(d_1, Delt, γ_e[1], Nx)
-Omega_2, Gamma_2 = AtomicArrays.effective_interaction_module.effective_constants(d_2, Delt, γ_e[1], Nx)
+Omega_1, Gamma_1 = AtomicArrays.effective_interaction.effective_constants(d_1, Delt, γ_e[1], Nx)
+Omega_2, Gamma_2 = AtomicArrays.effective_interaction.effective_constants(d_2, Delt, γ_e[1], Nx)
 
 pos = [[0,0,-L/2], [0,0,L/2]]
 S_1 = Spin(pos[1], delta=Omega_1)
@@ -81,8 +81,8 @@ Threads.@threads for kkii in CartesianIndices((2, NMAX))
     E_ampl = E_iter[ii] + 0.0im
     #δ_S = [(i < Nx*Ny + 1) ? 0.0 : Delt for i = 1:Nx*Ny*Nz]
 
-    Omega_1, Gamma_1 = AtomicArrays.effective_interaction_module.effective_constants(d_1, Delt, γ_e[1], Nx)
-    Omega_2, Gamma_2 = AtomicArrays.effective_interaction_module.effective_constants(d_2, Delt, γ_e[1], Nx)
+    Omega_1, Gamma_1 = AtomicArrays.effective_interaction.effective_constants(d_1, Delt, γ_e[1], Nx)
+    Omega_2, Gamma_2 = AtomicArrays.effective_interaction.effective_constants(d_2, Delt, γ_e[1], Nx)
 
     pos = [[0,0,-L/2], [0,0,L/2]]
     S_1 = Spin(pos[1], delta=Omega_1)
@@ -108,7 +108,7 @@ Threads.@threads for kkii in CartesianIndices((2, NMAX))
 
     # E_field vector for Rabi constant computation
     E_vec = [em_inc_function(S.spins[k].position, E_inc) for k = 1:length(S.spins)]
-    Om_R = AtomicArrays.field_module.rabi(E_vec, μ)
+    Om_R = AtomicArrays.field.rabi(E_vec, μ)
 
     T = [0:250.:50000;]
     # Initial state (Bloch state)
@@ -116,7 +116,7 @@ Threads.@threads for kkii in CartesianIndices((2, NMAX))
     theta = pi/1.
     # Meanfield
     state0 = CollectiveSpins.meanfield.blochstate(phi, theta, length(S.spins))
-    tout, state_mf_t = AtomicArrays.meanfield_module.timeevolution_field(T, S,
+    tout, state_mf_t = AtomicArrays.meanfield.timeevolution_field(T, S,
                                                                          Om_R,
                                                                          state0)
 
@@ -127,15 +127,15 @@ Threads.@threads for kkii in CartesianIndices((2, NMAX))
     """Forward scattering"""
 
     r_lim = 1000.0
-    σ_tot_e[ii,kk] = AtomicArrays.field_module.forward_scattering(r_lim, E_inc,
+    σ_tot_e[ii,kk] = AtomicArrays.field.forward_scattering(r_lim, E_inc,
                                                                 S, sm_mat);
     zlim = 500#0.7*(d+delt)*(Nx)
     n_samp = 400
-    #t_tot[ii,kk], pnts = AtomicArrays.field_module.transmission_reg(
+    #t_tot[ii,kk], pnts = AtomicArrays.field.transmission_reg(
     #                                        E_inc, em_inc_function,
     #                                        S, sm_mat; samples=n_samp, 
     #                                        zlim=zlim, angle=[π, π])
-    t_tot[ii,kk], pnts = AtomicArrays.field_module.transmission_plane(
+    t_tot[ii,kk], pnts = AtomicArrays.field.transmission_plane(
                                             E_inc, em_inc_function,
                                             S, sm_mat; samples=n_samp, 
                                             zlim=zlim, size=[5, 5])
@@ -143,8 +143,8 @@ Threads.@threads for kkii in CartesianIndices((2, NMAX))
     println("$kk - $ii")
 end
 
-obj = AtomicArrays.field_module.objective(σ_tot_e[:,1], σ_tot_e[:,2])
-efficiency = AtomicArrays.field_module.objective(t_tot[:,1], t_tot[:,2])
+obj = AtomicArrays.field.objective(σ_tot_e[:,1], σ_tot_e[:,2])
+efficiency = AtomicArrays.field.objective(t_tot[:,1], t_tot[:,2])
 
 """Plots"""
 

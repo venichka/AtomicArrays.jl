@@ -2,34 +2,36 @@ module AtomicArrays
 
 export System, Spin, SpinCollection, CavityMode, CavitySpinCollection,
         GreenTensor, OmegaMatrix, GammaMatrix,
-        interaction_module, field_module, geometry_module,
+        interaction, field, geometry,
         reducedspin, ReducedSpinBasis, reducedspintransition, reducedspinstate,
         reducedsigmap, reducedsigmam, reducedsigmax, reducedsigmay,
-        reducedsigmaz, reducedsigmapsigmam
+        reducedsigmaz, reducedsigmapsigmam,
+        collective_modes, Omega_k_chain, Gamma_k_chain, Omega_k_2D, Gamma_k_2D
         # field, ,
-        # collective_modes, Omega_k_chain, Gamma_k_chain, Omega_k_2D, Gamma_k_2D
 
 
 include("system.jl")
 include("timeevolution_base.jl")
-include("interaction_module.jl")
-include("effective_interaction_module.jl")
-include("field_module.jl")
-include("quantum_module.jl")
-include("reducedspin_module.jl")
-include("meanfield_module.jl")
-include("mpc_module.jl")
-include("geometry_module.jl")
-include("misc_module.jl")
+include("interaction.jl")
+include("effective_interaction.jl")
+include("field.jl")
+include("quantum.jl")
+include("reducedspin.jl")
+include("meanfield.jl")
+include("mpc.jl")
+include("geometry.jl")
+include("collective_modes.jl")
+include("misc.jl")
 
-using .field_module
-using .interaction_module
-using .quantum_module
-using .reducedspin_module
-using .meanfield_module
-using .mpc_module
-using .effective_interaction_module
-using .geometry_module
-using .misc_module
+using .field
+using .interaction
+using .quantum
+using .reducedspin
+using .meanfield
+using .mpc
+using .effective_interaction
+using .geometry
+using .collective_modes
+using .misc
 
 end # module

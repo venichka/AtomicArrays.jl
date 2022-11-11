@@ -17,8 +17,8 @@ using Markdown
 
 using Revise
 using AtomicArrays
-const EMField = AtomicArrays.field_module.EMField
-const effective_constants = AtomicArrays.effective_interaction_module.effective_constants
+const EMField = AtomicArrays.field.EMField
+const effective_constants = AtomicArrays.effective_interaction.effective_constants
 
 import EllipsisNotation: Ellipsis
 const .. = Ellipsis()
@@ -76,7 +76,7 @@ begin
 
     const NMAX = 30
 
-    const PATH_FIGS, PATH_DATA = AtomicArrays.misc_module.path()
+    const PATH_FIGS, PATH_DATA = AtomicArrays.misc.path()
 
 end
 
@@ -90,7 +90,7 @@ begin
     # Loading data
     dict_fs = load_dict(PATH_DATA, FILE_FS)
     dict_fs["order"]
-    obj_data = AtomicArrays.field_module.objective(
+    obj_data = AtomicArrays.field.objective(
         dict_fs["sigma_tot"][.., 1], dict_fs["sigma_tot"][.., 2])
 end
 

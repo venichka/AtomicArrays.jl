@@ -17,8 +17,8 @@ using Markdown
 
 using Revise
 using AtomicArrays
-const EMField = AtomicArrays.field_module.EMField
-const effective_constants = AtomicArrays.effective_interaction_module.effective_constants
+const EMField = AtomicArrays.field.EMField
+const effective_constants = AtomicArrays.effective_interaction.effective_constants
 
 import EllipsisNotation: Ellipsis
 const .. = Ellipsis()
@@ -88,7 +88,7 @@ begin
 
     const NMAX = 10
 
-    const PATH_FIGS, PATH_DATA = AtomicArrays.misc_module.path()
+    const PATH_FIGS, PATH_DATA = AtomicArrays.misc.path()
 
 end
 
@@ -148,7 +148,7 @@ end
 
 begin
     # Find optimal parameters
-    obj_data = AtomicArrays.field_module.objective(
+    obj_data = AtomicArrays.field.objective(
         dict_fs["sigma_tot"][.., 1], dict_fs["sigma_tot"][.., 2])
     obj_max = maximum(obj_data)
     opt_idx = indexin(obj_max, obj_data)[1] # CartesianIndex(7, 6, 2, 2) # for 10 freq
@@ -178,11 +178,11 @@ function spin_positions(L, a_1, delt)
 	if  LAT_TYPE == "lattice"
         d_1 = a_1
         d_2 = d_1 + delt
-        pos_1 = geometry_module.rectangle(d_1, d_1; Nx=Nx, Ny=Ny,
+        pos_1 = geometry.rectangle(d_1, d_1; Nx=Nx, Ny=Ny,
                                           position_0=[-(Nx-1)*d_1/2,
                                                       -(Ny-1)*d_1/2,
                                                       -L/2])
-        pos_2 = geometry_module.rectangle(d_2, d_2; Nx=Nx, Ny=Ny,
+        pos_2 = geometry.rectangle(d_2, d_2; Nx=Nx, Ny=Ny,
                                           position_0=[-(Nx-1)*d_2/2,
                                                       -(Ny-1)*d_2/2,
                                                       L/2])
@@ -190,11 +190,11 @@ function spin_positions(L, a_1, delt)
     elseif LAT_TYPE == "freq"
         d_1 = a_1
         d_2 = d_1
-        pos_1 = geometry_module.rectangle(d_1, d_1; Nx=Nx, Ny=Ny,
+        pos_1 = geometry.rectangle(d_1, d_1; Nx=Nx, Ny=Ny,
                                           position_0=[-(Nx-1)*d_1/2,
                                                       -(Ny-1)*d_1/2,
                                                       -L/2])
-        pos_2 = geometry_module.rectangle(d_2, d_2; Nx=Nx, Ny=Ny,
+        pos_2 = geometry.rectangle(d_2, d_2; Nx=Nx, Ny=Ny,
                                           position_0=[-(Nx-1)*d_2/2,
                                                       -(Ny-1)*d_2/2,
                                                       L/2])
@@ -203,14 +203,14 @@ function spin_positions(L, a_1, delt)
         a_2 = 0.3
         b_2 = a_2
         b_1 = a_1 + delt
-        pos_1 = AtomicArrays.geometry_module.dimer_square_1(a_1, a_2;
+        pos_1 = AtomicArrays.geometry.dimer_square_1(a_1, a_2;
                                         Nx=Nx, Ny=Ny,
                                         position_0=[
                                           -0.5*((Nx÷2)*a_1 + (Nx-1)÷2*a_2),
                                           -0.5*((Ny÷2)*a_1 + (Ny-1)÷2*a_2),
                                           -0.5*L
                                         ])
-        pos_2 = AtomicArrays.geometry_module.dimer_square_1(b_1, b_2;
+        pos_2 = AtomicArrays.geometry.dimer_square_1(b_1, b_2;
                                         Nx=Nx, Ny=Ny,
                                         position_0=[
                                           -0.5*((Nx÷2)*b_1 + (Nx-1)÷2*b_2),

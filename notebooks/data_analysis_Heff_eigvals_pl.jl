@@ -7,7 +7,7 @@ using InteractiveUtils
 # This Pluto notebook uses @bind for interactivity. When running this notebook outside of Pluto, the following 'mock version' of @bind gives bound variables a default value (instead of an error).
 macro bind(def, element)
     quote
-        local iv = try Base.loaded_modules[Base.PkgId(Base.UUID("6e696c72-6542-2067-7265-42206c756150"), "AbstractPlutoDingetjes")].Bonds.initial_value catch; b -> missing; end
+        local iv = try Base.loadeds[Base.PkgId(Base.UUID("6e696c72-6542-2067-7265-42206c756150"), "AbstractPlutoDingetjes")].Bonds.initial_value catch; b -> missing; end
         local el = $(esc(element))
         global $(esc(def)) = Core.applicable(Base.get, el) ? Base.get(el) : iv(el)
         el
@@ -36,8 +36,8 @@ begin
 
 	using Revise
 	using AtomicArrays
-	const EMField = AtomicArrays.field_module.EMField
-	const effective_constants = AtomicArrays.effective_interaction_module.effective_constants
+	const EMField = AtomicArrays.field.EMField
+	const effective_constants = AtomicArrays.effective_interaction.effective_constants
 end
 
 # ╔═╡ 0b04054e-ee1d-49fe-93f8-116182c326b1
@@ -52,7 +52,7 @@ begin
 	#  Expectation values
 	mapexpect(op, states, num) = map(s->(op(s)[num]), states)
 	
-	const PATH_FIGS, PATH_DATA = AtomicArrays.misc_module.path()
+	const PATH_FIGS, PATH_DATA = AtomicArrays.misc.path()
 	PATH_DATA = replace(PATH_DATA, r"data_2arrays_mpc_mf/$"=>"data_effective/")
 
 	# const PATH_FIG = "/home/nikita/Documents/Work/Projects/two_arrays/Figs/figs_eff_constants/"
@@ -192,22 +192,22 @@ function eigen_numerical(args)
 
     E_inc = EMField(E_ampl, E_kvec, E_angle, E_polar;
                          position_0 = E_pos0, waist_radius = E_width)
-    #em_inc_function = AtomicArrays.field_module.gauss
-    em_inc_function = AtomicArrays.field_module.plane
+    #em_inc_function = AtomicArrays.field.gauss
+    em_inc_function = AtomicArrays.field.plane
     
     # Atoms -- field interaction
     E_vec = [em_inc_function(spin.position, E_inc) for spin in S.spins]
-    Om_R = AtomicArrays.field_module.rabi(E_vec, S.polarizations)
+    Om_R = AtomicArrays.field.rabi(E_vec, S.polarizations)
 
     """System Hamiltonian"""
 
-    Γ, J = AtomicArrays.quantum_module.JumpOperators(S)
+    Γ, J = AtomicArrays.quantum.JumpOperators(S)
     Jdagger = [dagger(j) for j = J]
-    Ω = AtomicArrays.interaction_module.OmegaMatrix(S)
-    H = AtomicArrays.quantum_module.Hamiltonian(S) - sum(Om_R[j] * J[j] +
+    Ω = AtomicArrays.interaction.OmegaMatrix(S)
+    H = AtomicArrays.quantum.Hamiltonian(S) - sum(Om_R[j] * J[j] +
                                                               conj(Om_R[j]) * Jdagger[j]
                                                               for j = 1:N)
-    H_eff = AtomicArrays.quantum_module.Hamiltonian_eff(S) - sum(Om_R[j] * J[j] +
+    H_eff = AtomicArrays.quantum.Hamiltonian_eff(S) - sum(Om_R[j] * J[j] +
                                                               conj(Om_R[j]) * Jdagger[j]
                                                               for j = 1:N)
     

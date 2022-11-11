@@ -19,8 +19,8 @@ using Markdown
 
 using Revise
 using AtomicArrays
-const EMField = AtomicArrays.field_module.EMField
-const effective_constants = AtomicArrays.effective_interaction_module.effective_constants
+const EMField = AtomicArrays.field.EMField
+const effective_constants = AtomicArrays.effective_interaction.effective_constants
 
 import EllipsisNotation: Ellipsis
 const .. = Ellipsis()
@@ -74,7 +74,7 @@ begin
 
     const NMAX = 1000
 
-    const PATH_FIGS, PATH_DATA = AtomicArrays.misc_module.path()
+    const PATH_FIGS, PATH_DATA = AtomicArrays.misc.path()
 
 end
 
@@ -120,7 +120,7 @@ function quant_results()
     
     E = var_str
     # Calculating functions to plot
-    obj = AtomicArrays.field_module.objective(fs_tot(E, 0) ./ fs_tot_1a(E, 0),
+    obj = AtomicArrays.field.objective(fs_tot(E, 0) ./ fs_tot_1a(E, 0),
                                               fs_tot(E, 1) ./ fs_tot_1a(E, 1))
     Om_R = norm(μ_0) .* E ./ γ_0
 
@@ -204,7 +204,7 @@ function quant_results_freq()
     
     w_L = var_str
     # Calculating functions to plot
-    obj = AtomicArrays.field_module.objective(fs_tot(w_L, 0) ./ fs_tot_1a(w_L, 0),
+    obj = AtomicArrays.field.objective(fs_tot(w_L, 0) ./ fs_tot_1a(w_L, 0),
                                               fs_tot(w_L, 1) ./ fs_tot_1a(w_L, 1))
 
     w_L0 = w_L / om_0
@@ -289,7 +289,7 @@ function misc_results()
     f = Figure(resolution=(600,540))
 
     # Calculating functions to plot
-    obj = AtomicArrays.field_module.objective(fs_tot(E, 0), fs_tot(E, 1))
+    obj = AtomicArrays.field.objective(fs_tot(E, 0), fs_tot(E, 1))
     Om_R = norm(μ_0) .* E ./ γ_0
 
     # Plot

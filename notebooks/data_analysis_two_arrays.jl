@@ -7,7 +7,7 @@ using InteractiveUtils
 # This Pluto notebook uses @bind for interactivity. When running this notebook outside of Pluto, the following 'mock version' of @bind gives bound variables a default value (instead of an error).
 macro bind(def, element)
     quote
-        local iv = try Base.loaded_modules[Base.PkgId(Base.UUID("6e696c72-6542-2067-7265-42206c756150"), "AbstractPlutoDingetjes")].Bonds.initial_value catch; b -> missing; end
+        local iv = try Base.loadeds[Base.PkgId(Base.UUID("6e696c72-6542-2067-7265-42206c756150"), "AbstractPlutoDingetjes")].Bonds.initial_value catch; b -> missing; end
         local el = $(esc(element))
         global $(esc(def)) = Core.applicable(Base.get, el) ? Base.get(el) : iv(el)
         el
@@ -39,8 +39,8 @@ begin
 
     using Revise
     using AtomicArrays
-    const EMField = AtomicArrays.field_module.EMField
-    const effective_constants = AtomicArrays.effective_interaction_module.effective_constants
+    const EMField = AtomicArrays.field.EMField
+    const effective_constants = AtomicArrays.effective_interaction.effective_constants
 
     import EllipsisNotation: Ellipsis
     const .. = Ellipsis()
@@ -117,7 +117,7 @@ begin
 
     const NMAX = 30
 
-    const PATH_FIGS, PATH_DATA = AtomicArrays.misc_module.path()
+    const PATH_FIGS, PATH_DATA = AtomicArrays.misc.path()
 
 end
 
@@ -135,7 +135,7 @@ begin
     # Loading data
     dict_fs = load_dict(PATH_DATA, FILE_FS)
     dict_fs["order"]
-    obj_data = AtomicArrays.field_module.objective(
+    obj_data = AtomicArrays.field.objective(
         dict_fs["sigma_tot"][.., 1], dict_fs["sigma_tot"][.., 2])
 end
 

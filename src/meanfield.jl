@@ -1,4 +1,4 @@
-module meanfield_module
+module meanfield
 
 export ProductState, densityoperator
 
@@ -8,7 +8,7 @@ import OrdinaryDiffEq, DiffEqCallbacks, SteadyStateDiffEq
 import Sundials
 
 using QuantumOpticsBase, LinearAlgebra
-using ..interaction_module, ..AtomicArrays
+using ..interaction, ..AtomicArrays
 
 # Define Spin 1/2 operators
 const spinbasis = SpinBasis(1//2)
@@ -158,8 +158,8 @@ Meanfield time evolution.
 function timeevolution(T, S::SpinCollection, state0::ProductState; fout=nothing, kwargs...)
     N = length(S.spins)
     @assert N==state0.N
-    Ω = interaction_module.OmegaMatrix(S)
-    Γ = interaction_module.GammaMatrix(S)
+    Ω = interaction.OmegaMatrix(S)
+    Γ = interaction.GammaMatrix(S)
 
     function f(dy, y, p, t)
         sx, sy, sz = splitstate(N, y)
@@ -251,7 +251,7 @@ rotate(axis::Vector{T}, angle::Real, state::ProductState) where {T<:Real} = rota
 
 
 """
-    meanfield_module.f(dy, y, p, t)
+    meanfield.f(dy, y, p, t)
 
 Meanfield equations
 """
@@ -281,7 +281,7 @@ end
 
 
 """
-    meanfield_module.f(dy, y, p, t)
+    meanfield.f(dy, y, p, t)
 
 Meanfield equations for symbolic computations
 """
@@ -311,7 +311,7 @@ end
 
 
 """
-    meanfield_module.timeevolution_field_meanfield(T, S::SpinCollection, Om_R::Vector, state0[; fout])
+    meanfield.timeevolution_field_meanfield(T, S::SpinCollection, Om_R::Vector, state0[; fout])
 
 Meanfield time evolution.
 # Arguments
@@ -329,8 +329,8 @@ function timeevolution_field(T, S::SpinCollection, Om_R::Vector{ComplexF64},
     @assert N==state0.N
     Delta = [spin.delta for spin in S.spins] 
     gammas = [gamma for gamma in S.gammas] 
-    Ω = real(interaction_module.OmegaMatrix(S))
-    Γ = real(interaction_module.GammaMatrix(S))
+    Ω = real(interaction.OmegaMatrix(S))
+    Γ = real(interaction.GammaMatrix(S))
     p = (N, gammas, Delta, Ω, Γ, Om_R)
 
     if isa(fout, Nothing)
@@ -344,7 +344,7 @@ end
 
 
 """
-    meanfield_module.steady_state_field(T, S::SpinCollection, Om_R::Vector ,state0[; fout])
+    meanfield.steady_state_field(T, S::SpinCollection, Om_R::Vector ,state0[; fout])
 MPC steady state.
 # Arguments
 * `T`: Points of time for which output will be generated.
@@ -359,8 +359,8 @@ function steady_state_field(T, S::SpinCollection, Om_R::Vector{ComplexF64}, stat
     @assert N==state0.N
     Delta = [spin.delta for spin in S.spins] 
     gammas = [gamma for gamma in S.gammas] 
-    Ω = real(interaction_module.OmegaMatrix(S))
-    Γ = real(interaction_module.GammaMatrix(S))
+    Ω = real(interaction.OmegaMatrix(S))
+    Γ = real(interaction.GammaMatrix(S))
     p = (N, gammas, Delta, Ω, Γ, Om_R)
 
     if isa(fout, Nothing)
@@ -374,7 +374,7 @@ end
 
 
 """
-    meanfield_module.mapexpect(op, states, num)
+    meanfield.mapexpect(op, states, num)
 
 Expectation values for a operator of a spin collection.
 # Arguments
@@ -386,7 +386,7 @@ mapexpect(op, states::Array{ProductState{Int64, Float64}, 1}, num::Int) = map(s-
 
 
 """
-    meanfield_module.sigma_matrices(states, t_ind)
+    meanfield.sigma_matrices(states, t_ind)
 
 Expectation values for sx, sy, sz, sm, sp of a spin collection.
 # Arguments
@@ -449,7 +449,7 @@ Base.@pure pure_inference(fout,T) = Core.Compiler.return_type(fout, T)
 
 
 """
-    meanfield_module.steady_state()
+    meanfield.steady_state()
 """
 function steady_state(f::Function, state0::S, p::Tuple, fout::Function;
                     alg::SteadyStateDiffEq.SteadyStateDiffEqAlgorithm = SteadyStateDiffEq.DynamicSS(OrdinaryDiffEq.AutoVern7(OrdinaryDiffEq.RadauIIA5())),

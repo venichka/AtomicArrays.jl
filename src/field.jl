@@ -1,4 +1,4 @@
-module field_module
+module field
 
 using ..AtomicArrays
 import LinearAlgebra
@@ -46,7 +46,7 @@ EMField(amplitude::Number, module_k::Number, angle_k::Vector,
 
 
 """
-field_module.vec_rotate(vec::Vector, θ::Number, φ::Number)
+field.vec_rotate(vec::Vector, θ::Number, φ::Number)
 * Rotate vector by an angle θ about y-axis and by an angle φ about x-axis
 * θ is in a x-y plane
 * φ is in a y-z plane
@@ -73,7 +73,7 @@ end
 
 
 """
-field_module.gauss(r_vec::Vector, E::Field)
+field.gauss(r_vec::Vector, E::Field)
 Impinging field propagating along Z axis at angle φ i Y-Z plane and angle
 θ in X-Z plane.
 # Arguments
@@ -105,7 +105,7 @@ end
 
 
 """
-field_module.plane(r_vec::Vector, k_vec::Vector,  A::ComplexF64, pos_vec::Vector,
+field.plane(r_vec::Vector, k_vec::Vector,  A::ComplexF64, pos_vec::Vector,
                             polarisation::Vector)
 Impinging field propagating along k_vec
 # Arguments
@@ -127,7 +127,7 @@ end
 
 
 """
-field_module.rabi(E_vec::Vector, polarisation::Vector)
+field.rabi(E_vec::Vector, polarisation::Vector)
 Rabi frequency of atoms interacting with the incident field:
 ```math
 Ω_R = d E^*/ħ
@@ -147,7 +147,7 @@ end
 
 
 """
-field_module.total_field(inc_wave_function::Function, r::Vector,
+field.total_field(inc_wave_function::Function, r::Vector,
                          E::Field, S::SpinCollection, sigmam::Vector)
 Function computes the total field at position r:
 # Arguments
@@ -174,7 +174,7 @@ end
 
 
 """
-field_module.scattered_field(r::Vector, S::SpinCollection, sigmam::Vector)
+field.scattered_field(r::Vector, S::SpinCollection, sigmam::Vector)
 Function computes the total field at position r:
 # Arguments
 * `r`: Position [r_x, r_y, r_z]
@@ -196,7 +196,7 @@ end
 
 
 """
-field_module.forward_scattering(r_lim::Number, E::Field, S::SpinCollection,
+field.forward_scattering(r_lim::Number, E::Field, S::SpinCollection,
                                 sigmam::Vector)
 Computes forward scattering in k_vec of E_in direction.
 Note that forward scattering is normalized.
@@ -225,7 +225,7 @@ end
 
 
 """
-field_module.forward_scattering_1particle(r_lim::Number, E::Field,
+field.forward_scattering_1particle(r_lim::Number, E::Field,
                                             γ::Number; Δ::Number = 0.0)
 Computes forward scattering in k_vec of E_in direction of 1 atom.
 Note that forward scattering is normalized.
@@ -260,7 +260,7 @@ end
 
 
 """
-field_module.objective(scatt_dir_1, scatt_dir_2)
+field.objective(scatt_dir_1, scatt_dir_2)
 Computes the objective function for optimisation problem:
 # Arguments
 * `scatt_dir_1`: Number or array of any dimension of total scattering for direction 1.
@@ -278,7 +278,7 @@ end
 
 
 """
-field_module.transmission_rand(E::Field, inc_wave_function::Function,
+field.transmission_rand(E::Field, inc_wave_function::Function,
                           S::SpinCollection, sigmam::Vector)
 Function computes transmission in +z or -z direction in a hemisphere limited by
 angles [dθ, dφ], points are located randomly  with uniform distribution on
@@ -322,7 +322,7 @@ end
 
 
 """
-field_module.transmission_reg(E::Field, inc_wave_function::Function,
+field.transmission_reg(E::Field, inc_wave_function::Function,
                           S::SpinCollection, sigmam::Vector)
 Function computes transmission in +z or -z direction on a hemisphere at the
 distance zlim. Points are distributed on a hemisphere by Fibonacci sequence.
@@ -385,7 +385,7 @@ end
 
 
 """
-field_module.transmission_plane(E::Field, inc_wave_function::Function,
+field.transmission_plane(E::Field, inc_wave_function::Function,
                           S::SpinCollection, sigmam::Vector)
 Function computes transmission in +z or -z direction on a square plate at the
 distance zlim.

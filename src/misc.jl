@@ -1,8 +1,8 @@
-module misc_module
+module misc
 
 
 """
-    misc_module.path()
+    misc.path()
 
 # Output: 
 * PATH_FIGS

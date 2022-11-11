@@ -1,13 +1,13 @@
-module effective_interaction_module
+module effective_interaction
 
 using ..AtomicArrays
 
-include("interaction_module.jl")
-using .interaction_module
+include("interaction.jl")
+using .interaction
 
 
 """
-effective_interaction_module.effective_interactions(S::SpinCollection{T,P,G}) where {T,P,G}
+effective_interaction.effective_interactions(S::SpinCollection{T,P,G}) where {T,P,G}
 Function computing Ω_eff and Γ_eff for an array of spins at the position of the central spin.
 Arguments:
 * S: spin collection
@@ -22,10 +22,10 @@ function effective_interactions(S::SpinCollection{T,P,G}) where {T,P,G}
     idx = 1#Int32((N - sqrt(N)) ÷ 2)
     origin = spins[idx].position
     for i = 1:N
-        omega_eff += interaction_module.Omega(origin, spins[i].position, 
+        omega_eff += interaction.Omega(origin, spins[i].position, 
         mu[idx], mu[i], gamma[idx], gamma[i], 
         spins[idx].delta + 2π, spins[i].delta + 2π)
-        gamma_eff += interaction_module.Gamma(origin, spins[i].position, 
+        gamma_eff += interaction.Gamma(origin, spins[i].position, 
         mu[idx], mu[i], gamma[idx], gamma[i],
         spins[idx].delta + 2π, spins[i].delta + 2π)
     end
@@ -34,7 +34,7 @@ end
 
 
 """
-effective_interaction_module.collective_shift_1array(d::Real, Delt::Real, delt::Real, N::Int)
+effective_interaction.collective_shift_1array(d::Real, Delt::Real, delt::Real, N::Int)
 Function for computing collective shifts for a square array.
 Arguments:
 * d: lattice period of the basic array
@@ -49,12 +49,12 @@ function collective_shift_1array(d::Real, Delt::Real, delt::Real, N::Int)
     μ = [(i < 0) ? [0, 0, 1.0] : [1.0, 0im, 0.0] for i = 1:Nx*Ny]
     γ_e = [1e-2 for i = 1:Nx*Ny]
     S = SpinCollection(pos,μ; gammas=γ_e, deltas=Delt)
-    Omega, Gamma = effective_interaction_module.effective_interactions(S)
+    Omega, Gamma = effective_interaction.effective_interactions(S)
 end
 
 
 """
-effective_interaction_module.effective_constants(d::Real, Delt::Real, gamma::Real, N::Int)
+effective_interaction.effective_constants(d::Real, Delt::Real, gamma::Real, N::Int)
 Function for computing collective shifts for a square array.
 Arguments:
 * d: lattice period of the basic array
@@ -69,7 +69,7 @@ function effective_constants(d::Real, Delt::Real, gamma::Real, N::Int)
     μ = [(i < 0) ? [0, 0, 1.0] : [1.0, 0im, 0.0] for i = 1:Nx*Ny]
     γ_e = [gamma for i = 1:Nx*Ny]
     S = SpinCollection(pos,μ; gammas=γ_e, deltas=Delt)
-    Omega, Gamma = effective_interaction_module.effective_interactions(S)
+    Omega, Gamma = effective_interaction.effective_interactions(S)
 end
 
 

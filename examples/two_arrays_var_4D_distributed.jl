@@ -23,14 +23,14 @@ using DelimitedFiles
     using LinearAlgebra
 
     using AtomicArrays
-    const EMField = AtomicArrays.field_module.EMField
-    const sigma_matrices = AtomicArrays.meanfield_module.sigma_matrices
+    const EMField = AtomicArrays.field.EMField
+    const sigma_matrices = AtomicArrays.meanfield.sigma_matrices
 
 
     dag(x) = conj(transpose(x))
 
-    #em_inc_function = AtomicArrays.field_module.gauss
-    em_inc_function = AtomicArrays.field_module.plane
+    #em_inc_function = AtomicArrays.field.gauss
+    em_inc_function = AtomicArrays.field.plane
     NMAX = 20
     NMAX_T = 41
     Delt_iter = range(0.03, 0.08, NMAX)
@@ -72,11 +72,11 @@ t_tot = SharedArray{Float64,5}((NMAX,NMAX,NMAX,NMAX,2))
     d_1 = d; d_2 = d;
     L = L_iter[nn]
 
-    pos_1 = AtomicArrays.geometry_module.rectangle(d_1, d_1; Nx=Nx, Ny=Ny,
+    pos_1 = AtomicArrays.geometry.rectangle(d_1, d_1; Nx=Nx, Ny=Ny,
                                                    position_0=[-(Nx-1)*d_1/2, 
                                                                -(Ny-1)*d_1/2,
                                                                -L/2])
-    pos_2 = AtomicArrays.geometry_module.rectangle(d_2, d_2; Nx=Nx, Ny=Ny,
+    pos_2 = AtomicArrays.geometry.rectangle(d_2, d_2; Nx=Nx, Ny=Ny,
                                                    position_0=[-(Nx-1)*d_2/2, 
                                                                -(Ny-1)*d_2/2,
                                                                L/2])
@@ -107,7 +107,7 @@ t_tot = SharedArray{Float64,5}((NMAX,NMAX,NMAX,NMAX,2))
 
     # E_field vector for Rabi constant computation
     E_vec = [em_inc_function(S.spins[k].position, E_inc) for k = 1:Nx*Ny*Nz]
-    Om_R = AtomicArrays.field_module.rabi(E_vec, μ)
+    Om_R = AtomicArrays.field.rabi(E_vec, μ)
 
     T = [0:1000.:50000;]
     # Initial state (Bloch state)
@@ -115,7 +115,7 @@ t_tot = SharedArray{Float64,5}((NMAX,NMAX,NMAX,NMAX,2))
     theta = pi/1.
     # Meanfield
     state0 = CollectiveSpins.meanfield.blochstate(phi, theta, Nx*Ny*Nz)
-    tout, state_mf_t = AtomicArrays.meanfield_module.timeevolution_field(T, S,
+    tout, state_mf_t = AtomicArrays.meanfield.timeevolution_field(T, S,
                                                                          Om_R,
                                                                          state0)
 
@@ -126,27 +126,27 @@ t_tot = SharedArray{Float64,5}((NMAX,NMAX,NMAX,NMAX,2))
     """Forward scattering"""
 
     r_lim = 1000.0
-    σ_tot[ii,jj,mm,nn,kk] = AtomicArrays.field_module.forward_scattering(r_lim, E_inc,
+    σ_tot[ii,jj,mm,nn,kk] = AtomicArrays.field.forward_scattering(r_lim, E_inc,
                                                                 S, sm_mat);
 
     """Transmission"""
 
     zlim = 500
     n_samp = 400
-    #t_tot[ii,jj,mm,nn,kk], _ = AtomicArrays.field_module.transmission_reg(
+    #t_tot[ii,jj,mm,nn,kk], _ = AtomicArrays.field.transmission_reg(
     #                                        E_inc, em_inc_function,
     #                                        S, sm_mat; samples=n_samp, 
     #                                        zlim=zlim, angle=[π, π]);
-    t_tot[ii,jj,mm,nn,kk], _ = AtomicArrays.field_module.transmission_plane(
+    t_tot[ii,jj,mm,nn,kk], _ = AtomicArrays.field.transmission_plane(
                                             E_inc, em_inc_function,
                                             S, sm_mat; samples=n_samp, 
                                             zlim=zlim, size=[5, 5]);
 
 end
 
-obj_fun = AtomicArrays.field_module.objective(σ_tot[:,:,:,:,1], σ_tot[:,:,:,:,2])
+obj_fun = AtomicArrays.field.objective(σ_tot[:,:,:,:,1], σ_tot[:,:,:,:,2])
 opt_idx = indexin(maximum(obj_fun), obj_fun)[1]
-diode_eff = AtomicArrays.field_module.objective(t_tot[:,:,:,:,1], t_tot[:,:,:,:,2])
+diode_eff = AtomicArrays.field.objective(t_tot[:,:,:,:,1], t_tot[:,:,:,:,2])
 opt_idx_t = indexin(maximum(diode_eff), diode_eff)[1]
 
 """Plots"""

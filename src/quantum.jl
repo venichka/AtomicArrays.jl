@@ -1,9 +1,9 @@
-module quantum_module
+module quantum
 
 using ..AtomicArrays
 using QuantumOptics, LinearAlgebra
 
-using ..interaction_module
+using ..interaction
 
 try
     eval(Expr(:toplevel,:(import Optim)))
@@ -98,7 +98,7 @@ function Hamiltonian(S::SpinCollection)
         end
         sigmap_i = embed(b, i, sigmap_)
         sigmam_j = embed(b, j, sigmam_)
-        H += interaction_module.Omega(spins[i].position, spins[j].position, S.polarizations[i], S.polarizations[j], S.gammas[i], S.gammas[j],
+        H += interaction.Omega(spins[i].position, spins[j].position, S.polarizations[i], S.polarizations[j], S.gammas[i], S.gammas[j],
         S.spins[i].delta + 2π, S.spins[j].delta + 2π)*sigmap_i*sigmam_j
     end
     return H
@@ -123,9 +123,9 @@ function Hamiltonian_eff(S::SpinCollection)
     for i=1:N, j=1:N
         sigmap_i = embed(b, i, sigmap_)
         sigmam_j = embed(b, j, sigmam_)
-        H += (interaction_module.Omega(spins[i].position, spins[j].position, S.polarizations[i], S.polarizations[j], S.gammas[i], S.gammas[j],
+        H += (interaction.Omega(spins[i].position, spins[j].position, S.polarizations[i], S.polarizations[j], S.gammas[i], S.gammas[j],
         S.spins[i].delta + 2π, S.spins[j].delta + 2π) 
-        - 0.5im*interaction_module.Gamma(spins[i].position, spins[j].position, S.polarizations[i], S.polarizations[j], S.gammas[i], S.gammas[j],
+        - 0.5im*interaction.Gamma(spins[i].position, spins[j].position, S.polarizations[i], S.polarizations[j], S.gammas[i], S.gammas[j],
         S.spins[i].delta + 2π, S.spins[j].delta + 2π))*sigmap_i*sigmam_j
     end
     return H
@@ -164,7 +164,7 @@ Jump operators of the given system.
 """
 function JumpOperators(S::SpinCollection)
     J = SparseOpType[embed(basis(S), i, sigmam_) for i=1:length(S.spins)]
-    Γ = interaction_module.GammaMatrix(S)
+    Γ = interaction.GammaMatrix(S)
     return Γ, J
 end
 
@@ -201,7 +201,7 @@ function JumpOperators_diagonal(S::SpinCollection)
     spins = S.spins
     N = length(spins)
     b = basis(S)
-    Γ = [interaction_module.Gamma(spins[i].position, spins[j].position, S.polarizations[i], S.polarizations[j], S.gammas[i], S.gammas[j],
+    Γ = [interaction.Gamma(spins[i].position, spins[j].position, S.polarizations[i], S.polarizations[j], S.gammas[i], S.gammas[j],
     S.spins[i].delta, S.spins[j].delta) for i=1:N, j=1:N]
     λ, M = eig(Γ)
     J = Any[]

@@ -1,4 +1,4 @@
-module interaction_module
+module interaction
 
 using ..AtomicArrays
 

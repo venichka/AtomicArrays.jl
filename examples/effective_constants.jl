@@ -18,10 +18,10 @@ PyPlot.svg(true)
 using BenchmarkTools, ProgressMeter, Interpolations
 
 using AtomicArrays
-const EMField = AtomicArrays.field_module.EMField
-const effective_constants = AtomicArrays.effective_interaction_module.effective_constants
-const sigma_matrices = AtomicArrays.meanfield_module.sigma_matrices
-const mapexpect = AtomicArrays.meanfield_module.mapexpect
+const EMField = AtomicArrays.field.EMField
+const effective_constants = AtomicArrays.effective_interaction.effective_constants
+const sigma_matrices = AtomicArrays.meanfield.sigma_matrices
+const mapexpect = AtomicArrays.meanfield.mapexpect
 
 dag(x) = conj(transpose(x))
 
@@ -159,8 +159,8 @@ Threads.@threads for ijklm in CartesianIndices((NMAX, NMAX, NMAX, NMAX, NMAX))
     S = SpinCollection([S_1, S_2], [[1,0,0],[1,0,0]], 
                         gammas=[abs(Gamma_1), abs(Gamma_2)])
     
-    Ω21[i,j,k,l,m] = AtomicArrays.interaction_module.OmegaMatrix(S)[2,1]
-    Γ21[i,j,k,l,m] = AtomicArrays.interaction_module.GammaMatrix(S)[2,1]
+    Ω21[i,j,k,l,m] = AtomicArrays.interaction.OmegaMatrix(S)[2,1]
+    Γ21[i,j,k,l,m] = AtomicArrays.interaction.GammaMatrix(S)[2,1]
 
     # Update progress bar
     Threads.atomic_add!(jj, 1)
@@ -183,6 +183,6 @@ S_1 = Spin(pos[1], delta=0.001 - 0.2)
 S_2 = Spin(pos[2], delta=-0.02 + 0.2)
 S = SpinCollection([S_1, S_2], [[1,0,0],[1,0,0]], 
                     gammas=[0.02, 0.007])
-@benchmark  AtomicArrays.interaction_module.OmegaMatrix(S)
+@benchmark  AtomicArrays.interaction.OmegaMatrix(S)
 @benchmark SpinCollection([S_1, S_2], [[1,0,0],[1,0,0]], 
                     gammas=[0.02, 0.007])

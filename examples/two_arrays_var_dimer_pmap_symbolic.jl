@@ -25,14 +25,14 @@ using DelimitedFiles
 
     using Revise
     using AtomicArrays
-    const EMField = AtomicArrays.field_module.EMField
-    const sigma_matrices_mf = AtomicArrays.meanfield_module.sigma_matrices
-    const sigma_matrices_mpc = AtomicArrays.mpc_module.sigma_matrices
+    const EMField = AtomicArrays.field.EMField
+    const sigma_matrices_mf = AtomicArrays.meanfield.sigma_matrices
+    const sigma_matrices_mpc = AtomicArrays.mpc.sigma_matrices
 
-    PATH_FIGS, PATH_DATA = AtomicArrays.misc_module.path()
+    PATH_FIGS, PATH_DATA = AtomicArrays.misc.path()
 
-    #em_inc_function = AtomicArrays.field_module.gauss
-    const em_inc_function = AtomicArrays.field_module.plane
+    #em_inc_function = AtomicArrays.field.gauss
+    const em_inc_function = AtomicArrays.field.plane
     const NMAX = 10
     const NMAX_T = 41
     dir_list = ["right", "left"]
@@ -71,11 +71,11 @@ else
         d_1 = 0.3
         d_2 = 0.4
         L = 0.7
-        pos_1 = AtomicArrays.geometry_module.rectangle(d_1, d_1; Nx=Nx, Ny=Ny,
+        pos_1 = AtomicArrays.geometry.rectangle(d_1, d_1; Nx=Nx, Ny=Ny,
             position_0=[-(Nx - 1) * d_1 / 2,
                 -(Ny - 1) * d_1 / 2,
                 -L / 2])
-        pos_2 = AtomicArrays.geometry_module.rectangle(d_2, d_2; Nx=Nx, Ny=Ny,
+        pos_2 = AtomicArrays.geometry.rectangle(d_2, d_2; Nx=Nx, Ny=Ny,
             position_0=[-(Nx - 1) * d_2 / 2,
                 -(Ny - 1) * d_2 / 2,
                 L / 2])
@@ -97,7 +97,7 @@ else
 
         # E_field vector for Rabi constant computation
         E_vec = [em_inc_function(S.spins[k].position, E_inc) for k = 1:N]
-        Om_R = AtomicArrays.field_module.rabi(E_vec, μ)
+        Om_R = AtomicArrays.field.rabi(E_vec, μ)
 
         p_mpc = (N, γ_e, δ_S, Ω, real(Γ), real(Om_R), imag(Om_R))
 
@@ -108,12 +108,12 @@ else
 
         # MPC Jacobian
         state0 = CollectiveSpins.mpc.blochstate(phi, theta, N)
-        prob_mpc = ODEProblem(AtomicArrays.mpc_module.f, state0.data, (T[1], T[end]), p_mpc)
+        prob_mpc = ODEProblem(AtomicArrays.mpc.f, state0.data, (T[1], T[end]), p_mpc)
         Symbolics.@variables u[axes(prob_mpc.u0)...] t
         u = collect(u)
         du = similar(u)
         du .= 0
-        AtomicArrays.mpc_module.f_sym(du, u, prob_mpc.p, t)
+        AtomicArrays.mpc.f_sym(du, u, prob_mpc.p, t)
         return Symbolics.jacobian_sparsity(du, u)
     end
     @time sparsity_mpc = @fetchfrom 2 fetch(sparsity_mtx)
@@ -130,14 +130,14 @@ end
     function total_scattering(DIRECTION, delt, a_2, a_1, L, E_ampl)
         b_2 = a_2
         b_1 = a_1 + delt
-        pos_1 = AtomicArrays.geometry_module.dimer_square_1(a_1, a_2; 
+        pos_1 = AtomicArrays.geometry.dimer_square_1(a_1, a_2; 
                                         Nx=Nx, Ny=Ny,
                                         position_0=[
                                           -0.5*((Nx÷2)*a_1 + (Nx-1)÷2*a_2),
                                           -0.5*((Ny÷2)*a_1 + (Ny-1)÷2*a_2),
                                           -0.5*L
                                         ])
-        pos_2 = AtomicArrays.geometry_module.dimer_square_1(b_1, b_2; 
+        pos_2 = AtomicArrays.geometry.dimer_square_1(b_1, b_2; 
                                         Nx=Nx, Ny=Ny,
                                         position_0=[
                                           -0.5*((Nx÷2)*b_1 + (Nx-1)÷2*b_2),
@@ -169,7 +169,7 @@ end
 
         # E_field vector for Rabi constant computation
         E_vec = [em_inc_function(S.spins[k].position, E_inc) for k = 1:Nx*Ny*Nz]
-        Om_R = AtomicArrays.field_module.rabi(E_vec, μ)
+        Om_R = AtomicArrays.field.rabi(E_vec, μ)
 
         tmax = 10000.0 #1. / minimum(abs.(GammaMatrix(S)))
         T = [0:tmax/2:tmax;]
@@ -178,7 +178,7 @@ end
         theta = pi / 1.0
         # Meanfield
         state0_mf = CollectiveSpins.meanfield.blochstate(phi, theta, N)
-        _, state_mf_t = AtomicArrays.meanfield_module.timeevolution_field(T, S,
+        _, state_mf_t = AtomicArrays.meanfield.timeevolution_field(T, S,
             Om_R,
             state0_mf, alg=VCABM(), reltol=1e-10, abstol=1e-12)
 
@@ -186,13 +186,13 @@ end
         tmax = 10000.0
         T_mpc = [0:tmax/2:tmax;]
         p = (N, γ_e, δ_S, Ω, real(Γ), real(Om_R), imag(Om_R))
-        state0 = AtomicArrays.mpc_module.state_from_mf(state_mf_t[end], phi, theta, N)
-        f = ODEFunction(AtomicArrays.mpc_module.f, jac_prototype=float(sparsity_mpc))
+        state0 = AtomicArrays.mpc.state_from_mf(state_mf_t[end], phi, theta, N)
+        f = ODEFunction(AtomicArrays.mpc.f, jac_prototype=float(sparsity_mpc))
         prob = ODEProblem(f, state0.data, (T_mpc[1], T_mpc[end]), p)
         state = solve(prob, VCABM(); reltol=1e-10, abstol=1e-12,
                       save_everystep=false)
         state_t = [CollectiveSpins.mpc.MPCState(state.u[end])]
-        # _, state_t = AtomicArrays.mpc_module.timeevolution_field(T, S, Om_R, state0, alg=Vern7());
+        # _, state_t = AtomicArrays.mpc.timeevolution_field(T, S, Om_R, state0, alg=Vern7());
 
         t_ind = 1
         # t_ind = length(T)
@@ -201,7 +201,7 @@ end
 
         """Forward scattering"""
         r_lim = 1000.0
-        return AtomicArrays.field_module.forward_scattering(r_lim, E_inc,
+        return AtomicArrays.field.forward_scattering(r_lim, E_inc,
             S, sm_mat)
     end
 
@@ -227,7 +227,7 @@ DIM = Int8(log(NMAX, length(arg_list)/2)) + 1
                 Tuple((i < DIM) ? NMAX : 2 
                         for i=1:DIM));
 
-#efficiency = AtomicArrays.field_module.objective(σ_tot[:,:,:,:,1], σ_tot[:,:,:,:,2])
+#efficiency = AtomicArrays.field.objective(σ_tot[:,:,:,:,1], σ_tot[:,:,:,:,2])
 efficiency = abs.(σ_tot[.., 1] - σ_tot[.., 2]) ./ abs.(σ_tot[.., 1] + σ_tot[.., 2]);
 opt_idx = indexin(maximum(efficiency), efficiency)[1]
 

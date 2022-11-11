@@ -1,4 +1,4 @@
-module reducedspin_module
+module reducedspin
 
 using QuantumOptics, Base.Cartesian
 using Combinatorics: combinations
@@ -8,7 +8,7 @@ export ReducedSpinBasis, reducedspintransition, reducedspinstate, reducedsigmap,
 
 import Base: ==
 
-using ..interaction_module, ..AtomicArrays
+using ..interaction, ..AtomicArrays
 
 """
     ReducedSpinBasis(N, M)
@@ -246,7 +246,7 @@ Builds the dipole-dipole Hamiltonian.
 function Hamiltonian(S::SpinCollection, M::Int=1)
     N = length(S.spins)
     b = ReducedSpinBasis(N, M)
-    OmegaM = interaction_module.OmegaMatrix(S)
+    OmegaM = interaction.OmegaMatrix(S)
 
     H = SparseOperator(b)
     for i=1:N
@@ -276,7 +276,7 @@ function JumpOperators(S::SpinCollection, M::Int=1)
 
         sm(j) = reducedsigmam(b, j)
         Jumps = [ sm(j) for j=1:N]
-        GammaM = interaction_module.GammaMatrix(S)
+        GammaM = interaction.GammaMatrix(S)
 
         return GammaM, Jumps
     end
@@ -301,8 +301,8 @@ Non-Hermitian Hamiltonian
 function Hamiltonian_nh(S::SpinCollection, M::Int=1, MS::Int=1)
     N = length(S.spins)
     b = ReducedSpinBasis(N, M, MS)
-    OmegaM = interaction_module.OmegaMatrix(S)
-    GammaM = interaction_module.GammaMatrix(S)
+    OmegaM = interaction.OmegaMatrix(S)
+    GammaM = interaction.GammaMatrix(S)
 
     H = SparseOperator(b)
     for i=1:N

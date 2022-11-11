@@ -9,10 +9,10 @@ using PyPlot
 PyPlot.svg(true)
 
 using AtomicArrays
-const EMField = AtomicArrays.field_module.EMField
-const collective_shift_1array = AtomicArrays.effective_interaction_module.collective_shift_1array
-const sigma_matrices = AtomicArrays.meanfield_module.sigma_matrices
-const mapexpect = AtomicArrays.meanfield_module.mapexpect
+const EMField = AtomicArrays.field.EMField
+const collective_shift_1array = AtomicArrays.effective_interaction.collective_shift_1array
+const sigma_matrices = AtomicArrays.meanfield.sigma_matrices
+const mapexpect = AtomicArrays.meanfield.mapexpect
 
 dag(x) = conj(transpose(x))
 
@@ -79,8 +79,8 @@ end
 
 incident_field = EMField(E_ampl, E_kvec, E_angle, E_polar;
                      position_0 = E_pos0, waist_radius = E_width)
-#em_inc_function = AtomicArrays.field_module.gauss
-em_inc_function = AtomicArrays.field_module.plane
+#em_inc_function = AtomicArrays.field.gauss
+em_inc_function = AtomicArrays.field.plane
 
 
 """Impinging field"""
@@ -114,7 +114,7 @@ display(fig_0)
 E_vec = [em_inc_function(S.spins[k].position,incident_field)
          for k = 1:2]
 
-Om_R = AtomicArrays.field_module.rabi(E_vec, μ)
+Om_R = AtomicArrays.field.rabi(E_vec, μ)
 
 fig_1, axs = plt.subplots(ncols=1, nrows=2, figsize=(5.7, 3),
                         constrained_layout=true)
@@ -132,7 +132,7 @@ const phi = 0.
 const theta = pi/1.
 # Meanfield
 state0 = CollectiveSpins.meanfield.blochstate(phi, theta, 2)
-@time tout, state_mf_t = AtomicArrays.meanfield_module.timeevolution_field(T, S, Om_R, state0)
+@time tout, state_mf_t = AtomicArrays.meanfield.timeevolution_field(T, S, Om_R, state0)
 
 
 # Expectation values
@@ -185,16 +185,16 @@ E_tot = zeros(length(x), length(z))
 E_sc = zeros(length(x), length(z))
 Threads.@threads for i=1:length(x)
     for j=1:length(z)
-        I[i,j] = (norm(AtomicArrays.field_module.total_field(em_inc_function,
+        I[i,j] = (norm(AtomicArrays.field.total_field(em_inc_function,
                                                              [x[i],y,z[j]],
                                                              incident_field,
                                                              S, sm_mat))^2 /
                     abs(E_ampl)^2)
-        E_tot[i,j] = real(AtomicArrays.field_module.total_field(em_inc_function,
+        E_tot[i,j] = real(AtomicArrays.field.total_field(em_inc_function,
                                                              [x[i],y,z[j]],
                                                              incident_field,
                                                              S, sm_mat)[1])/real(E_ampl)
-        E_sc[i,j] = real(AtomicArrays.field_module.scattered_field(
+        E_sc[i,j] = real(AtomicArrays.field.scattered_field(
                                                              [x[i],y,z[j]],
                                                              S, sm_mat)[1])/real(E_ampl)
         print(i, "  ", j,"\n")
@@ -236,7 +236,7 @@ e_field_x = zeros(ComplexF64, length(zf))
 e_tot_x = zeros(ComplexF64, length(zf))
 for i = 1:length(zf)
     e_field_x[i] = (em_inc_function([xf,yf,zf[i]], incident_field)[1])
-    e_tot_x[i] = (AtomicArrays.field_module.total_field(em_inc_function,
+    e_tot_x[i] = (AtomicArrays.field.total_field(em_inc_function,
                                                         [xf,yf,zf[i]],
                                                         incident_field,
                                                         S, sm_mat)[1])
@@ -266,7 +266,7 @@ display(fig_e_5)
 
 """Total scattering"""
 rlim = 1000.0
-σ_tot  = AtomicArrays.field_module.forward_scattering(rlim, incident_field,
+σ_tot  = AtomicArrays.field.forward_scattering(rlim, incident_field,
                                                       S, sm_mat)
 
 

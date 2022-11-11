@@ -5,9 +5,9 @@ using CollectiveSpins
 using PyPlot
 
 using AtomicArrays
-const EMField = AtomicArrays.field_module.EMField
-const sigma_matrices = AtomicArrays.meanfield_module.sigma_matrices
-const mapexpect = AtomicArrays.meanfield_module.mapexpect
+const EMField = AtomicArrays.field.EMField
+const sigma_matrices = AtomicArrays.meanfield.sigma_matrices
+const mapexpect = AtomicArrays.meanfield.mapexpect
 
 
 dag(x) = conj(transpose(x))
@@ -18,8 +18,8 @@ const PATH_FIG = "/Users/jimi/Google Drive/Work/In process/Projects/\
                   Collective_effects_QMS/Figures/one_particle"
 
 
-#em_inc_function = AtomicArrays.field_module.gauss
-em_inc_function = AtomicArrays.field_module.plane
+#em_inc_function = AtomicArrays.field.gauss
+em_inc_function = AtomicArrays.field.plane
 const NMAX = 100
 
 edipole = [0, 0, 1]
@@ -76,7 +76,7 @@ PyPlot.colorbar(label="Amplitude")
 
 E_vec = [em_inc_function(system.spins[k].position, E_inc) for k = 1:N]
 
-Om_R = AtomicArrays.field_module.rabi(E_vec, system.polarizations)
+Om_R = AtomicArrays.field.rabi(E_vec, system.polarizations)
 
 fig_1, axs = PyPlot.subplots(ncols=1, nrows=2, figsize=(5.7, 3),
                         constrained_layout=true)
@@ -100,7 +100,7 @@ H.data
 
 # Meanfield evolution
 state0 = CollectiveSpins.meanfield.blochstate(0., pi, N)
-tout, state_mf_t = AtomicArrays.meanfield_module.timeevolution_field(T, system,
+tout, state_mf_t = AtomicArrays.meanfield.timeevolution_field(T, system,
                                                                      Om_R, state0)
 
 # Quantum: master equation
@@ -141,7 +141,7 @@ sz_mf_1 = mapexpect(CollectiveSpins.meanfield.sz, state_mf_t, 1)
 
 r_lim = 1000.
 r_vec = r_lim*[sin(E_angle[1]),0.0,cos(E_angle[1])]
-E_out = (AtomicArrays.field_module.total_field(em_inc_function,
+E_out = (AtomicArrays.field.total_field(em_inc_function,
                                                r_vec,
                                                E_inc,
                                                system, [sm_steady_master]))

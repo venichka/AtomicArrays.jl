@@ -6,7 +6,7 @@ using Revise
 using AtomicArrays
 
 function xyz(a_1, a_2; Nx=6, Ny=6, position_0=[0,0,0])
-    pos = AtomicArrays.geometry_module.dimer_square_1(a_1, a_2; Nx=Nx, Ny=Ny,
+    pos = AtomicArrays.geometry.dimer_square_1(a_1, a_2; Nx=Nx, Ny=Ny,
                                         position_0=[
                                           -0.5*((Nx÷2)*a_1 + (Nx-1)÷2*a_2),
                                           -0.5*((Ny÷2)*a_1 + (Ny-1)÷2*a_2),

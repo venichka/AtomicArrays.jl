@@ -6,9 +6,9 @@ using PyPlot
 using LinearAlgebra, BenchmarkTools
 
 using AtomicArrays
-const EMField = AtomicArrays.field_module.EMField
-const sigma_matrices = AtomicArrays.meanfield_module.sigma_matrices
-const mapexpect = AtomicArrays.meanfield_module.mapexpect
+const EMField = AtomicArrays.field.EMField
+const sigma_matrices = AtomicArrays.meanfield.sigma_matrices
+const mapexpect = AtomicArrays.meanfield.mapexpect
 
 dag(x) = conj(transpose(x))
 
@@ -65,8 +65,8 @@ E_angle = [0.0*π/6, 0.0]  # {θ, φ}
 
 E_inc = EMField(E_ampl, E_kvec, E_angle, E_polar;
                      position_0 = E_pos0, waist_radius = E_width)
-em_inc_function = AtomicArrays.field_module.gauss
-#em_inc_function = AtomicArrays.field_module.plane
+em_inc_function = AtomicArrays.field.gauss
+#em_inc_function = AtomicArrays.field.plane
 
 
 """Impinging field"""
@@ -98,7 +98,7 @@ PyPlot.tight_layout()
 # E_field vector for Rabi constant computation
 E_vec = [em_inc_function(S.spins[k].position, E_inc)
          for k = 1:Nx*Ny*Nz]
-Om_R = AtomicArrays.field_module.rabi(E_vec, μ)
+Om_R = AtomicArrays.field.rabi(E_vec, μ)
 
 const T = [0:1.0:1000;]
 # Initial state (Bloch state)
@@ -106,7 +106,7 @@ const phi = 0.
 const theta = pi/1.
 # Meanfield
 state0 = CollectiveSpins.meanfield.blochstate(phi, theta, Nx*Ny*Nz)
-tout, state_mf_t = AtomicArrays.meanfield_module.timeevolution_field(T, S, Om_R, state0)
+tout, state_mf_t = AtomicArrays.meanfield.timeevolution_field(T, S, Om_R, state0)
 
 
 # Expectation values

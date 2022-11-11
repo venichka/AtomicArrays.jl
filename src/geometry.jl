@@ -1,8 +1,8 @@
-module geometry_module
+module geometry
 
 
 """
-    geometry_module.rectangle(a, b; Nx=2, Ny=2, position_0=[0,0,0])
+    geometry.rectangle(a, b; Nx=2, Ny=2, position_0=[0,0,0])
 Positions of spins on a rectangular lattice in the xy-plane.
 The lattice starts at the origin and continues into positive x and y direction.
 # Arguments
@@ -16,7 +16,7 @@ rectangle(a::S, b::T; Nx::Int=2, Ny::Int=2, position_0::Vector{U}=[0.0,0.0,0.0])
 
 
 """
-    geometry_module.dimer_square(a, b; position_0=[0.0,0.0,0.0])
+    geometry.dimer_square(a, b; position_0=[0.0,0.0,0.0])
 Positions of spins on a dimer lattice in the xy-plane.
 # Arguments
 * `a`: Lattice period 
@@ -47,7 +47,7 @@ end
 
 
 """
-    geometry_module.dimer_square_1(a_1, a_2; position_0=[0.0,0.0,0.0])
+    geometry.dimer_square_1(a_1, a_2; position_0=[0.0,0.0,0.0])
 Positions of spins on a dimer lattice in the xy-plane.
 a_1 + a_2 = a -- the whole lattice period
 # Arguments

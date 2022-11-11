@@ -5,7 +5,7 @@ using LinearAlgebra, DifferentialEquations
 using BenchmarkTools
 
 using AtomicArrays
-const EMField = AtomicArrays.field_module.EMField
+const EMField = AtomicArrays.field.EMField
 
 # System parameters
 const a = 0.18
@@ -19,7 +19,7 @@ const NMAX = 100
 const pos = cs.geometry.chain(a, N)
 const Delt_S = [(i < N) ? 0.0 : 0.5 for i = 1:N]
 const S = SpinCollection(pos, e_dipole; gammas=γ, deltas=Delt_S)
-const em_inc_function = AtomicArrays.field_module.plane
+const em_inc_function = AtomicArrays.field.plane
 
 # Define Spin 1/2 operators
 spinbasis = SpinBasis(1//2)
@@ -64,7 +64,7 @@ end
 
 
 E_vec = [em_inc_function(S.spins[k].position, E_inc) for k = 1:N]
-Om_R = AtomicArrays.field_module.rabi(E_vec, S.polarizations)
+Om_R = AtomicArrays.field.rabi(E_vec, S.polarizations)
 
 #fig_1, axs = PyPlot.subplots(ncols=1, nrows=2, figsize=(5.7, 3),
 #    constrained_layout=true)
@@ -84,10 +84,10 @@ Om_R = AtomicArrays.field_module.rabi(E_vec, S.polarizations)
 #H = CollectiveSpins.quantum.Hamiltonian(S) - sum(Om_R[j]*J[j]+
 #                                                       conj(Om_R[j])*Jdagger[j]
 #                                                       for j=1:N)
-Γ, J = AtomicArrays.quantum_module.JumpOperators(S)
+Γ, J = AtomicArrays.quantum.JumpOperators(S)
 Jdagger = [dagger(j) for j = J]
-Ω = AtomicArrays.interaction_module.OmegaMatrix(S)
-H = AtomicArrays.quantum_module.Hamiltonian(S) - sum(Om_R[j] * J[j] +
+Ω = AtomicArrays.interaction.OmegaMatrix(S)
+H = AtomicArrays.quantum.Hamiltonian(S) - sum(Om_R[j] * J[j] +
                                                           conj(Om_R[j]) * Jdagger[j]
                                                           for j = 1:N)
 
@@ -108,15 +108,15 @@ tout, state_ind_t = cs.independent.timeevolution(T, S, state0)
 # Meanfield
 state0 = cs.meanfield.blochstate(phi, theta, N)
 #tout, state_mf_t = cs.meanfield.timeevolution(T, S, state0)
-tout, state_mf_t = AtomicArrays.meanfield_module.timeevolution_field(T, S, Om_R, state0)
-#@benchmark AtomicArrays.meanfield_module.timeevolution_field(T, S, Om_R, state0)
+tout, state_mf_t = AtomicArrays.meanfield.timeevolution_field(T, S, Om_R, state0)
+#@benchmark AtomicArrays.meanfield.timeevolution_field(T, S, Om_R, state0)
 
 
 # Meanfield + Correlations
 state0 = cs.mpc.blochstate(phi, theta, N)
 #tout, state_mpc_t = cs.mpc.timeevolution(T, S, state0)
-tout, state_mpc_t = AtomicArrays.mpc_module.timeevolution_field(T, S, Om_R, state0)
-#@benchmark AtomicArrays.mpc_module.timeevolution_field(T, S, Om_R, state0)
+tout, state_mpc_t = AtomicArrays.mpc.timeevolution_field(T, S, Om_R, state0)
+#@benchmark AtomicArrays.mpc.timeevolution_field(T, S, Om_R, state0)
 
 # Quantum: master equation
 sx_master = Float64[]

@@ -6,9 +6,9 @@ using PyPlot
 using LinearAlgebra, BenchmarkTools
 
 using AtomicArrays
-const EMField = AtomicArrays.field_module.EMField
-const sigma_matrices = AtomicArrays.meanfield_module.sigma_matrices
-const mapexpect = AtomicArrays.meanfield_module.mapexpect
+const EMField = AtomicArrays.field.EMField
+const sigma_matrices = AtomicArrays.meanfield.sigma_matrices
+const mapexpect = AtomicArrays.meanfield.mapexpect
 
 dag(x) = conj(transpose(x))
 
@@ -65,8 +65,8 @@ E_angle = [pi-1.0*π/6, 0.0]  # {θ, φ}
 
 E_inc = EMField(E_ampl, E_kvec, E_angle, E_polar;
                      position_0 = E_pos0, waist_radius = E_width)
-em_inc_function = AtomicArrays.field_module.gauss
-#em_inc_function = AtomicArrays.field_module.plane
+em_inc_function = AtomicArrays.field.gauss
+#em_inc_function = AtomicArrays.field.plane
 
 
 """Impinging field"""
@@ -98,7 +98,7 @@ PyPlot.tight_layout()
 # E_field vector for Rabi constant computation
 E_vec = [em_inc_function(S.spins[k].position, E_inc)
          for k = 1:Nx*Ny*Nz]
-Om_R = AtomicArrays.field_module.rabi(E_vec, μ)
+Om_R = AtomicArrays.field.rabi(E_vec, μ)
 
 const T = [0:1.0:1000;]
 # Initial state (Bloch state)
@@ -106,7 +106,7 @@ const phi = 0.
 const theta = pi/1.
 # Meanfield
 state0 = CollectiveSpins.meanfield.blochstate(phi, theta, Nx*Ny*Nz)
-tout, state_mf_t = AtomicArrays.meanfield_module.timeevolution_field(T, S, Om_R, state0)
+tout, state_mf_t = AtomicArrays.meanfield.timeevolution_field(T, S, Om_R, state0)
 
 
 # Expectation values
@@ -159,7 +159,7 @@ if VIEW == "x-y"
     I = zeros(length(x), length(y))
     Threads.@threads for i=1:length(x)
         for j=1:length(x)
-            I[i,j] = (norm(AtomicArrays.field_module.total_field(em_inc_function,
+            I[i,j] = (norm(AtomicArrays.field.total_field(em_inc_function,
                                                                  [x[i],y[j],z],
                                                                  E_inc, S,
                                                                  sm_mat))^2 /
@@ -200,7 +200,7 @@ elseif VIEW == "x-z"
     I = zeros(length(x), length(z))
     Threads.@threads for i=1:length(x)
         for j=1:length(z)
-            I[i,j] = (norm(AtomicArrays.field_module.total_field(em_inc_function,
+            I[i,j] = (norm(AtomicArrays.field.total_field(em_inc_function,
                                                                  [x[i],y,z[j]],
                                                                  E_inc, S,
                                                                  sm_mat))^2 /
@@ -249,7 +249,7 @@ e_field_x = zeros(ComplexF64, length(zf))
 e_tot_x = zeros(ComplexF64, length(zf))
 for i = 1:length(zf)
     e_field_x[i] = (em_inc_function([xf,yf,zf[i]], E_inc)[1])
-    e_tot_x[i] = (AtomicArrays.field_module.total_field(em_inc_function,
+    e_tot_x[i] = (AtomicArrays.field.total_field(em_inc_function,
                                                                  [xf,yf,zf[i]],
                                                                  E_inc, S,
                                                                  sm_mat)[1])
@@ -273,7 +273,7 @@ ylim = 0.0001
 zlim = (E_angle[1] >= π/2) ? -1000.0 : 1000.0
 x_t = range(-xlim, xlim, NMAX_T)
 y_t = range(-ylim, ylim, NMAX_T)
-E_out = sum(E_inc.polarisation'*AtomicArrays.field_module.total_field(em_inc_function,
+E_out = sum(E_inc.polarisation'*AtomicArrays.field.total_field(em_inc_function,
                                                                  [x_t[i],y_t[j],zlim],
                                                                  E_inc, S,
                                                                  sm_mat)
@@ -289,7 +289,7 @@ ylim = 5.0001
 zlim = (E_angle[1] >= π/2) ? -d*Nx/2. : d*Nx/2
 x_t = range(-xlim, xlim, NMAX_T)
 y_t = range(-ylim, ylim, NMAX_T)
-E_out = [norm(AtomicArrays.field_module.total_field(em_inc_function,
+E_out = [norm(AtomicArrays.field.total_field(em_inc_function,
                                                            [x_t[i],y_t[j],zlim],
                                                            E_inc,
                                                            S, sm_mat))
@@ -304,7 +304,7 @@ PyPlot.contourf(x_t,y_t, transmission', 100)
 PyPlot.colorbar()
 
 zlim = 1*d*(Nx)
-@time tran, points = AtomicArrays.field_module.transmission_reg(E_inc, em_inc_function,
+@time tran, points = AtomicArrays.field.transmission_reg(E_inc, em_inc_function,
                                        S, sm_mat; samples=40000, zlim=zlim, angle=[π, π]);
 tran
 
@@ -320,7 +320,7 @@ z_p = [points[i][3] for i = 1:length(points)]
 #PyPlot.figure()
 #PyPlot.scatter3D(x_p, y_p,z_p)
 
-tf = AtomicArrays.field_module.total_field
+tf = AtomicArrays.field.total_field
 positions = vec([(x_p[i], y_p[i], z_p[i]) for i in 1:length(x_p)])
 vals = [norm(tf(em_inc_function,points[ip],E_inc,S, sm_mat))^2/norm(E_ampl)^2
         for ip in 1:length(points)]

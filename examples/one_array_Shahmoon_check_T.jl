@@ -6,9 +6,9 @@ using PyPlot
 using LinearAlgebra
 
 using AtomicArrays
-const EMField = AtomicArrays.field_module.EMField
-const sigma_matrices = AtomicArrays.meanfield_module.sigma_matrices
-const mapexpect = AtomicArrays.meanfield_module.mapexpect
+const EMField = AtomicArrays.field.EMField
+const sigma_matrices = AtomicArrays.meanfield.sigma_matrices
+const mapexpect = AtomicArrays.meanfield.mapexpect
 
 dag(x) = conj(transpose(x))
 
@@ -42,7 +42,7 @@ E_pos0 = [0.0,0.0,0.0]
 E_polar = [1.0, 0im, 0.0]
 E_angle = [0.0*π/6, 0.0]  # {θ, φ}
 
-em_inc_function = AtomicArrays.field_module.gauss
+em_inc_function = AtomicArrays.field.gauss
 
 
 Threads.@threads for i = 1:NMAX
@@ -73,7 +73,7 @@ Threads.@threads for i = 1:NMAX
     # E_field vector for Rabi constant computation
     E_vec = [em_inc_function(S.spins[k].position, E_inc)
              for k = 1:Nx*Ny*Nz]
-    Om_R = AtomicArrays.field_module.rabi(E_vec, μ)
+    Om_R = AtomicArrays.field.rabi(E_vec, μ)
 
     T = [0:2500.0:5000;]
     # Initial state (Bloch state)
@@ -81,7 +81,7 @@ Threads.@threads for i = 1:NMAX
     theta = pi/1.
     # Meanfield
     state0 = CollectiveSpins.meanfield.blochstate(phi, theta, Nx*Ny*Nz)
-    tout, state_mf_t = AtomicArrays.meanfield_module.timeevolution_field(T, S,
+    tout, state_mf_t = AtomicArrays.meanfield.timeevolution_field(T, S,
                                                                          Om_R,
                                                                          state0)
 
@@ -97,7 +97,7 @@ Threads.@threads for i = 1:NMAX
     zlim = (abs(E_angle[1]) >= π/2) ? -1000.0 : 1000.0
     x_t = range(-xlim, xlim, NMAX_T)
     y_t = range(-ylim, ylim, NMAX_T)
-    E_out = sum(E_polar'*AtomicArrays.field_module.total_field(em_inc_function,
+    E_out = sum(E_polar'*AtomicArrays.field.total_field(em_inc_function,
                                                                [x_t[i],y_t[j],zlim],
                                                                E_inc, S, sm_mat)
                 for i = 1:NMAX_T, j = 1:NMAX_T)
@@ -107,7 +107,7 @@ Threads.@threads for i = 1:NMAX
 
     # Second approach: regular distribution of points on a hemisphere, power T
     zlim = 1*d*(Nx)
-    tran[i], _ = AtomicArrays.field_module.transmission_reg(E_inc,
+    tran[i], _ = AtomicArrays.field.transmission_reg(E_inc,
                                                             em_inc_function,
                                                             S, sm_mat;
                                                             samples=400,
@@ -116,7 +116,7 @@ Threads.@threads for i = 1:NMAX
 
     # Third approach: random distribution of points on a hemisphere, T with polarisation
     zlim = 1*d*(Nx)
-    tran2[i], _ = AtomicArrays.field_module.transmission_rand(E_inc,
+    tran2[i], _ = AtomicArrays.field.transmission_rand(E_inc,
                                                               em_inc_function,
                                                               S, sm_mat;
                                                               samples=400,

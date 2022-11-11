@@ -18,7 +18,7 @@ using PyPlot
 PyPlot.svg(false)
 PyPlot.pygui(true)
 
-const PATH_FIGS, PATH_DATA = AtomicArrays.misc_module.path()
+const PATH_FIGS, PATH_DATA = AtomicArrays.misc.path()
 const LAT_TYPE = "lat"
 
 # Parameters
@@ -40,11 +40,11 @@ delt = 0.0
 d_1 = d
 d_2 = d + delt
 L = 0.62222
-pos_1 = AtomicArrays.geometry_module.rectangle(d_1, d_1; Nx=Nx, Ny=Ny,
+pos_1 = AtomicArrays.geometry.rectangle(d_1, d_1; Nx=Nx, Ny=Ny,
                                                position_0=[-(Nx-1)*d_1/2, 
                                                            -(Ny-1)*d_1/2,
                                                            -L/2])
-pos_2 = AtomicArrays.geometry_module.rectangle(d_2, d_2; Nx=Nx, Ny=Ny,
+pos_2 = AtomicArrays.geometry.rectangle(d_2, d_2; Nx=Nx, Ny=Ny,
                                                position_0=[-(Nx-1)*d_2/2, 
                                                            -(Ny-1)*d_2/2,
                                                            L/2])
@@ -312,8 +312,8 @@ function collective_shift(d, L, N)
     delt = 0.0
     d_1 = d
     d_2 = d + delt
-    pos_1 = geometry_module.rectangle(d_1, d_1; Nx=Nx, Ny=Ny, position_0=[0.,0.,0.])
-    pos_2 = geometry_module.rectangle(d_2, d_2; Nx=Nx, Ny=Ny, position_0=[0.,0.,L])
+    pos_1 = geometry.rectangle(d_1, d_1; Nx=Nx, Ny=Ny, position_0=[0.,0.,0.])
+    pos_2 = geometry.rectangle(d_2, d_2; Nx=Nx, Ny=Ny, position_0=[0.,0.,L])
     pos = vcat(pos_1, pos_2)
     # shift the origin of the array
     #p_x0 = pos[1][1]
@@ -329,7 +329,7 @@ function collective_shift(d, L, N)
     μ = [(i < 0) ? [0, 0, 1.0] : [1.0, 0im, 0.0] for i = 1:N]
     γ_e = [1e-0 for i = 1:N]
     S = SpinCollection(pos,μ; gammas=γ_e)
-    Omega, Gamma = AtomicArrays.effective_interaction_module.effective_interactions(S)
+    Omega, Gamma = AtomicArrays.effective_interaction.effective_interactions(S)
 end
 
 NMAX = 100
@@ -361,7 +361,7 @@ display(fig_3)
 # TODO: find the way to project the steady-state of mf model on reduced spin 
 #       states
 
-ρ_mf = AtomicArrays.meanfield_module.densityoperator(state_mf_t[end])
+ρ_mf = AtomicArrays.meanfield.densityoperator(state_mf_t[end])
 
 
 

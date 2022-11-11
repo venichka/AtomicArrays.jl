@@ -1,7 +1,7 @@
-module mpc_module
+module mpc
 
 using QuantumOpticsBase, LinearAlgebra
-using ..interaction_module, ..AtomicArrays, ..quantum_module
+using ..interaction, ..AtomicArrays, ..quantum
 
 import ..integrate_base
 
@@ -20,7 +20,7 @@ catch e
     end
 end
 
-import ..meanfield_module: densityoperator
+import ..meanfield: densityoperator
 
 export MPCState, densityoperator
 
@@ -335,8 +335,8 @@ MPC time evolution.
 function timeevolution(T, S::SpinCollection, state0::MPCState; fout=nothing, kwargs...)
     N = length(S.spins)
     @assert N==state0.N
-    Ω = interaction_module.OmegaMatrix(S)
-    Γ = interaction_module.GammaMatrix(S)
+    Ω = interaction.OmegaMatrix(S)
+    Γ = interaction.GammaMatrix(S)
 
     function f(dy, y, p, t)
         sx, sy, sz, Cxx, Cyy, Czz, Cxy, Cxz, Cyz = splitstate(N, y)
@@ -649,7 +649,7 @@ end
 
 
 """
-    mpc_module.f(dy, y, p, t)
+    mpc.f(dy, y, p, t)
 
 MPC equations
 """
@@ -735,7 +735,7 @@ end
 
 
 """
-    mpc_module.f_sym(dy, y, p, t)
+    mpc.f_sym(dy, y, p, t)
 
 MPC equations for symbolic enhancement
 """
@@ -821,7 +821,7 @@ end
 
 
 """
-    mpc_module.timeevolution_field(T, S::SpinCollection, Om_R::Vector ,state0[; fout])
+    mpc.timeevolution_field(T, S::SpinCollection, Om_R::Vector ,state0[; fout])
 MPC time evolution.
 # Arguments
 * `T`: Points of time for which output will be generated.
@@ -836,8 +836,8 @@ function timeevolution_field(T, S::SpinCollection, Om_R::Vector{ComplexF64}, sta
     @assert N==state0.N
     Delta = [spin.delta for spin in S.spins] 
     gammas = [gamma for gamma in S.gammas] 
-    Ω = real(interaction_module.OmegaMatrix(S))
-    Γ = real(interaction_module.GammaMatrix(S))
+    Ω = real(interaction.OmegaMatrix(S))
+    Γ = real(interaction.GammaMatrix(S))
     reOmR = real(Om_R)
     imOmR = imag(Om_R)
     p = (N, gammas, Delta, Ω, Γ, reOmR, imOmR)
@@ -853,7 +853,7 @@ end
 
 
 """
-    mpc_module.steady_state_field(T, S::SpinCollection, Om_R::Vector ,state0[; fout])
+    mpc.steady_state_field(T, S::SpinCollection, Om_R::Vector ,state0[; fout])
 MPC steady state.
 # Arguments
 * `T`: Points of time for which output will be generated.
@@ -868,8 +868,8 @@ function steady_state_field(T, S::SpinCollection, Om_R::Vector{ComplexF64}, stat
     @assert N==state0.N
     Delta = [spin.delta for spin in S.spins] 
     gammas = [gamma for gamma in S.gammas] 
-    Ω = real(interaction_module.OmegaMatrix(S))
-    Γ = real(interaction_module.GammaMatrix(S))
+    Ω = real(interaction.OmegaMatrix(S))
+    Γ = real(interaction.GammaMatrix(S))
     reOmR = real(Om_R)
     imOmR = imag(Om_R)
     p = (N, gammas, Delta, Ω, Γ, reOmR, imOmR)
@@ -885,14 +885,14 @@ end
 
 
 """
-    mpc_module.state_from_mf(state_mf, phi, theta, N)
+    mpc.state_from_mf(state_mf, phi, theta, N)
 
 Creates the state for MPC solver using the MF state (sx, sy, sz)
 
 Correlation functions of all spins have the same azimuthal angle `phi` and polar angle `theta`.
 """
-function state_from_mf(state_mf::AtomicArrays.meanfield_module.ProductState, phi::Real, theta::Real, N::Int=1)
-    sx_mf, sy_mf, sz_mf = AtomicArrays.meanfield_module.splitstate(state_mf)
+function state_from_mf(state_mf::AtomicArrays.meanfield.ProductState, phi::Real, theta::Real, N::Int=1)
+    sx_mf, sy_mf, sz_mf = AtomicArrays.meanfield.splitstate(state_mf)
     state = blochstate(phi, theta, N)
     sx, sy, sz, Cxx, Cyy, Czz, Cxy, Cxz, Cyz = splitstate(state)
     for k=1:N
@@ -905,7 +905,7 @@ end
 
 
 """
-    mpc_module.mapexpect(op, states, num)
+    mpc.mapexpect(op, states, num)
 
 Expectation values for a operator of a spin collection.
 # Arguments
@@ -917,7 +917,7 @@ mapexpect(op, states::Array{MPCState{Int64, Float64}, 1}, num::Int) = map(s->(op
 
 
 """
-    mpc_module.sigma_matrices(states, t_ind)
+    mpc.sigma_matrices(states, t_ind)
 
 Expectation values for sx, sy, sz, sm, sp of a spin collection.
 # Arguments
@@ -936,7 +936,7 @@ end
 
 
 """
-    mpc_module.splitstate_sym(N, sym_data)
+    mpc.splitstate_sym(N, sym_data)
 Returns sx, sy, sz, Cxx, Cyy, Czz, Cxy, Cxz, Cyz.
 """
 function splitstate_sym(N::Int, sym_data::Vector{Symbolics.Num})
@@ -955,7 +955,7 @@ end
 
 
 """
-    mpc_module.integrate()
+    mpc.integrate()
 """
 function integrate(T::Vector, f::Function, state0::S, p::Tuple, fout::Function;
                     alg = OrdinaryDiffEq.AutoVern7(OrdinaryDiffEq.RadauIIA5()),
@@ -999,7 +999,7 @@ Base.@pure pure_inference(fout,T) = Core.Compiler.return_type(fout, T)
 
 
 """
-    mpc_module.steady_state()
+    mpc.steady_state()
 """
 function steady_state(f::Function, state0::S, p::Tuple, fout::Function;
                     alg::SteadyStateDiffEq.SteadyStateDiffEqAlgorithm = SteadyStateDiffEq.DynamicSS(OrdinaryDiffEq.AutoVern7(OrdinaryDiffEq.RadauIIA5())),

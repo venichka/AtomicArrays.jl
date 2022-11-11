@@ -16,19 +16,19 @@ PyPlot.svg(true)
 
 using Revise
 using AtomicArrays
-const EMField = AtomicArrays.field_module.EMField
-const sigma_matrices_mf = AtomicArrays.meanfield_module.sigma_matrices
-const sigma_matrices_mpc = AtomicArrays.mpc_module.sigma_matrices
+const EMField = AtomicArrays.field.EMField
+const sigma_matrices_mf = AtomicArrays.meanfield.sigma_matrices
+const sigma_matrices_mpc = AtomicArrays.mpc.sigma_matrices
 
 
-const PATH_FIGS, PATH_DATA = AtomicArrays.misc_module.path()
+const PATH_FIGS, PATH_DATA = AtomicArrays.misc.path()
 
 const DIM_VARS = 1
 const EQ_TYPE = "mf"
 const LAT_TYPE = "freq"
 
-# const em_inc_function = AtomicArrays.field_module.gauss
-const em_inc_function = AtomicArrays.field_module.plane
+# const em_inc_function = AtomicArrays.field.gauss
+const em_inc_function = AtomicArrays.field.plane
 const NMAX = 100
 const NMAX_T = 41
 σ_tot = zeros(NMAX, 2)
@@ -55,11 +55,11 @@ d_1 = d
 d_2 = d + delt
 L = 0.10444#0.62222 #0.338#0.335678
 
-pos_1 = geometry_module.rectangle(d_1, d_1; Nx=Nx, Ny=Ny,
+pos_1 = geometry.rectangle(d_1, d_1; Nx=Nx, Ny=Ny,
     position_0=[-(Nx - 1) * d_1 / 2,
         -(Ny - 1) * d_1 / 2,
         -L / 2])
-pos_2 = geometry_module.rectangle(d_2, d_2; Nx=Nx, Ny=Ny,
+pos_2 = geometry.rectangle(d_2, d_2; Nx=Nx, Ny=Ny,
     position_0=[-(Nx - 1) * d_2 / 2,
         -(Ny - 1) * d_2 / 2,
         L / 2])
@@ -88,11 +88,11 @@ Threads.@threads for kkii in CartesianIndices((2, NMAX))
 
     d_1 = d
     d_2 = d + delt
-    pos_1 = geometry_module.rectangle(d_1, d_1; Nx=Nx, Ny=Ny,
+    pos_1 = geometry.rectangle(d_1, d_1; Nx=Nx, Ny=Ny,
         position_0=[-(Nx - 1) * d_1 / 2,
             -(Ny - 1) * d_1 / 2,
             -L / 2])
-    pos_2 = geometry_module.rectangle(d_2, d_2; Nx=Nx, Ny=Ny,
+    pos_2 = geometry.rectangle(d_2, d_2; Nx=Nx, Ny=Ny,
         position_0=[-(Nx - 1) * d_2 / 2,
             -(Ny - 1) * d_2 / 2,
             L / 2])
@@ -124,7 +124,7 @@ Threads.@threads for kkii in CartesianIndices((2, NMAX))
 
     # E_field vector for Rabi constant computation
     E_vec = [em_inc_function(S.spins[k].position, E_inc) for k = 1:Nx*Ny*Nz]
-    Om_R = AtomicArrays.field_module.rabi(E_vec, μ)
+    Om_R = AtomicArrays.field.rabi(E_vec, μ)
 
     T = [0:25000.0:50000;]
     # Initial state (Bloch state)
@@ -132,21 +132,21 @@ Threads.@threads for kkii in CartesianIndices((2, NMAX))
     theta = pi
 
     "Meanfield"
-    state0_mf = AtomicArrays.meanfield_module.blochstate(phi, theta, Nx * Ny * Nz)
-    # tout, state_mf_t = AtomicArrays.meanfield_module.timeevolution_field(T, S,
+    state0_mf = AtomicArrays.meanfield.blochstate(phi, theta, Nx * Ny * Nz)
+    # tout, state_mf_t = AtomicArrays.meanfield.timeevolution_field(T, S,
     #     Om_R, state0_mf, alg=Vern7(), reltol=1e-10, abstol=1e-12)
-    state = AtomicArrays.meanfield_module.steady_state_field(T, S, Om_R, 
+    state = AtomicArrays.meanfield.steady_state_field(T, S, Om_R, 
         state0_mf, alg=SSRootfind(), reltol=1e-10, abstol=1e-12)
-    state_mf_t = [AtomicArrays.meanfield_module.ProductState(state.u)]
+    state_mf_t = [AtomicArrays.meanfield.ProductState(state.u)]
 
     if EQ_TYPE == "mpc"
-        state0 = AtomicArrays.mpc_module.state_from_mf(state_mf_t[end], phi, theta, N)
+        state0 = AtomicArrays.mpc.state_from_mf(state_mf_t[end], phi, theta, N)
     
-        # state = AtomicArrays.mpc_module.steady_state_field(T, S, Om_R, 
+        # state = AtomicArrays.mpc.steady_state_field(T, S, Om_R, 
         #     state0, alg=SSRootfind(), reltol=1e-10, abstol=1e-12)
-        # state_t = [AtomicArrays.mpc_module.MPCState(state.u)]
+        # state_t = [AtomicArrays.mpc.MPCState(state.u)]
 
-        _, state_t = AtomicArrays.mpc_module.timeevolution_field(T, S,
+        _, state_t = AtomicArrays.mpc.timeevolution_field(T, S,
          Om_R, state0, alg=VCABM(), 
          reltol=1e-10, abstol=1e-12, maxiters=1e10);
 
@@ -162,18 +162,18 @@ Threads.@threads for kkii in CartesianIndices((2, NMAX))
     """Forward scattering"""
 
     r_lim = 1000.0
-    σ_tot[ii, kk] = AtomicArrays.field_module.forward_scattering(r_lim, E_inc,
+    σ_tot[ii, kk] = AtomicArrays.field.forward_scattering(r_lim, E_inc,
                                               S, sm_mat) 
-    σ_tot_1a[ii, kk] = AtomicArrays.field_module.forward_scattering_1particle(
+    σ_tot_1a[ii, kk] = AtomicArrays.field.forward_scattering_1particle(
                                                  r_lim, E_inc, γ_e[1])
         
     zlim = 500#0.7*(d+delt)*(Nx)
     n_samp = 5
-    # t_tot[ii, kk], pnts = AtomicArrays.field_module.transmission_reg(
+    # t_tot[ii, kk], pnts = AtomicArrays.field.transmission_reg(
     #     E_inc, em_inc_function,
     #     S, sm_mat; samples=n_samp,
     #     zlim=zlim, angle=[π, π])
-    t_tot[ii, kk], pnts = AtomicArrays.field_module.transmission_plane(
+    t_tot[ii, kk], pnts = AtomicArrays.field.transmission_plane(
         E_inc, em_inc_function,
         S, sm_mat; samples=n_samp,
         zlim=zlim, size=[5, 5])
@@ -181,8 +181,8 @@ Threads.@threads for kkii in CartesianIndices((2, NMAX))
     println("$kk - $ii")
 end
 
-obj = AtomicArrays.field_module.objective(σ_tot[:, 1], σ_tot[:, 2])
-efficiency = AtomicArrays.field_module.objective(t_tot[:, 1], t_tot[:, 2])
+obj = AtomicArrays.field.objective(σ_tot[:, 1], σ_tot[:, 2])
+efficiency = AtomicArrays.field.objective(t_tot[:, 1], t_tot[:, 2])
 
 """Plots"""
 
@@ -225,7 +225,7 @@ end
 
 
 function scatt_fig_norm(var, result)
-    obj = AtomicArrays.field_module.objective(result[:, 1], result[:, 2])
+    obj = AtomicArrays.field.objective(result[:, 1], result[:, 2])
     fig, ax = PyPlot.subplots(ncols=1, nrows=1, figsize=(6, 3),
         constrained_layout=true)
     ax.plot(var/γ_e[1], result[:, 1], color="r", label=L"\sigma_\mathrm{tot}^0")
@@ -243,7 +243,7 @@ end
 
 
 function scatt_fig_unnorm(var, result)
-    obj = AtomicArrays.field_module.objective(result[:, 1], result[:, 2])
+    obj = AtomicArrays.field.objective(result[:, 1], result[:, 2])
     fig, ax = PyPlot.subplots(ncols=1, nrows=1, figsize=(6, 3),
         constrained_layout=true)
     ax.plot(var/γ_e[1], result[:, 1], color="r", label=L"\sigma_\mathrm{tot}^0")
