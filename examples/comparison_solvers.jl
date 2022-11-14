@@ -1,6 +1,5 @@
-using QuantumOptics, CollectiveSpins
-const cs = CollectiveSpins
-using PyPlot
+using QuantumOptics
+# using PyPlot
 using LinearAlgebra, DifferentialEquations
 using BenchmarkTools
 
@@ -16,7 +15,7 @@ const N = 5
 const Ncenter = 3
 const NMAX = 100
 
-const pos = cs.geometry.chain(a, N)
+const pos = AtomicArrays.geometry.chain(a, N)
 const Delt_S = [(i < N) ? 0.0 : 0.5 for i = 1:N]
 const S = SpinCollection(pos, e_dipole; gammas=γ, deltas=Delt_S)
 const em_inc_function = AtomicArrays.field.plane
@@ -102,18 +101,18 @@ const theta = pi/2.
 # Time evolution
 
 # Independent
-state0 = cs.independent.blochstate(phi, theta, N)
-tout, state_ind_t = cs.independent.timeevolution(T, S, state0)
+state0 = AtomicArrays.independent.blochstate(phi, theta, N)
+tout, state_ind_t = AtomicArrays.independent.timeevolution(T, S, state0)
 
 # Meanfield
-state0 = cs.meanfield.blochstate(phi, theta, N)
+state0 = AtomicArrays.meanfield.blochstate(phi, theta, N)
 #tout, state_mf_t = cs.meanfield.timeevolution(T, S, state0)
 tout, state_mf_t = AtomicArrays.meanfield.timeevolution_field(T, S, Om_R, state0)
 #@benchmark AtomicArrays.meanfield.timeevolution_field(T, S, Om_R, state0)
 
 
 # Meanfield + Correlations
-state0 = cs.mpc.blochstate(phi, theta, N)
+state0 = AtomicArrays.mpc.blochstate(phi, theta, N)
 #tout, state_mpc_t = cs.mpc.timeevolution(T, S, state0)
 tout, state_mpc_t = AtomicArrays.mpc.timeevolution_field(T, S, Om_R, state0)
 #@benchmark AtomicArrays.mpc.timeevolution_field(T, S, Om_R, state0)
@@ -131,13 +130,13 @@ td_ind = Float64[]
 td_mf  = Float64[]
 td_mpc = Float64[]
 
-embed(op::Operator) = QuantumOptics.embed(cs.quantum.basis(S), Ncenter, op)
+embed(op::Operator) = QuantumOptics.embed(AtomicArrays.quantum.basis(S), Ncenter, op)
 
 function fout(t, rho)
     i = findfirst(isequal(t), T)
-    rho_ind = cs.independent.densityoperator(state_ind_t[i])
-    rho_mf  = cs.meanfield.densityoperator(state_mf_t[i])
-    rho_mpc = cs.mpc.densityoperator(state_mpc_t[i])
+    rho_ind = AtomicArrays.independent.densityoperator(state_ind_t[i])
+    rho_mf  = AtomicArrays.meanfield.densityoperator(state_mf_t[i])
+    rho_mpc = AtomicArrays.mpc.densityoperator(state_mpc_t[i])
     push!(td_ind, tracedistance(rho, rho_ind))
     push!(td_mf,  tracedistance(rho, rho_mf))
     push!(td_mpc, tracedistance(rho, rho_mpc))
@@ -150,7 +149,7 @@ function fout(t, rho)
     return nothing
 end
 
-Ψ₀ = cs.quantum.blochstate(phi,theta,N)
+Ψ₀ = AtomicArrays.quantum.blochstate(phi,theta,N)
 ρ₀ = Ψ₀⊗dagger(Ψ₀)
 QuantumOptics.timeevolution.master_h(T, ρ₀, H, J; fout=fout, rates=Γ)
 #cs.quantum.timeevolution(T, S, ρ₀, fout=fout)
@@ -159,75 +158,75 @@ QuantumOptics.timeevolution.master_h(T, ρ₀, H, J; fout=fout, rates=Γ)
 mapexpect(op, states) = map(s->(op(s)[Ncenter]), states)
 mapexpect_corr(op, states) = map(s->(op(s)[2,5]), states)
 
-sx_ind = mapexpect(cs.independent.sx, state_ind_t)
-sy_ind = mapexpect(cs.independent.sy, state_ind_t)
-sz_ind = mapexpect(cs.independent.sz, state_ind_t)
+sx_ind = mapexpect(AtomicArrays.independent.sx, state_ind_t)
+sy_ind = mapexpect(AtomicArrays.independent.sy, state_ind_t)
+sz_ind = mapexpect(AtomicArrays.independent.sz, state_ind_t)
 
-sx_mf = mapexpect(cs.meanfield.sx, state_mf_t)
-sy_mf = mapexpect(cs.meanfield.sy, state_mf_t)
-sz_mf = mapexpect(cs.meanfield.sz, state_mf_t)
+sx_mf = mapexpect(AtomicArrays.meanfield.sx, state_mf_t)
+sy_mf = mapexpect(AtomicArrays.meanfield.sy, state_mf_t)
+sz_mf = mapexpect(AtomicArrays.meanfield.sz, state_mf_t)
 
-sx_mpc = mapexpect(cs.mpc.sx, state_mpc_t)
-sy_mpc = mapexpect(cs.mpc.sy, state_mpc_t)
-sz_mpc = mapexpect(cs.mpc.sz, state_mpc_t)
-Cxx_mpc = mapexpect_corr(cs.mpc.Cxx, state_mpc_t)
-Cxy_mpc = mapexpect_corr(cs.mpc.Cxy, state_mpc_t)
-Cyz_mpc = mapexpect_corr(cs.mpc.Cyz, state_mpc_t)
+sx_mpc = mapexpect(AtomicArrays.mpc.sx, state_mpc_t)
+sy_mpc = mapexpect(AtomicArrays.mpc.sy, state_mpc_t)
+sz_mpc = mapexpect(AtomicArrays.mpc.sz, state_mpc_t)
+Cxx_mpc = mapexpect_corr(AtomicArrays.mpc.Cxx, state_mpc_t)
+Cxy_mpc = mapexpect_corr(AtomicArrays.mpc.Cxy, state_mpc_t)
+Cyz_mpc = mapexpect_corr(AtomicArrays.mpc.Cyz, state_mpc_t)
 
 # Plots
-PyPlot.figure(figsize=(5, 5))
-PyPlot.plot(T, td_mf)
-PyPlot.plot(T, td_mpc)
-PyPlot.xlabel("Time")
-PyPlot.ylabel(L"\frac{1}{2} Tr\left[ \sqrt{(\rho_a - \rho_q)^\dagger (\rho_a - \rho_q)} \right]")
-PyPlot.title("Projection of approximate solutions on quantum")
-display(gcf())
+# PyPlot.figure(figsize=(5, 5))
+# PyPlot.plot(T, td_mf)
+# PyPlot.plot(T, td_mpc)
+# PyPlot.xlabel("Time")
+# PyPlot.ylabel(L"\frac{1}{2} Tr\left[ \sqrt{(\rho_a - \rho_q)^\dagger (\rho_a - \rho_q)} \right]")
+# PyPlot.title("Projection of approximate solutions on quantum")
+# display(gcf())
 
-fig = PyPlot.figure(figsize=(8, 12))
-PyPlot.subplot(311)
-PyPlot.plot(T, sx_master, label="master")
-PyPlot.plot(T, sx_mf, label="mean field")
-PyPlot.plot(T, sx_mpc, label="mpc")
-PyPlot.xlabel("Time")
-PyPlot.ylabel(L"\langle \sigma_x \rangle")
-PyPlot.legend()
+# fig = PyPlot.figure(figsize=(8, 12))
+# PyPlot.subplot(311)
+# PyPlot.plot(T, sx_master, label="master")
+# PyPlot.plot(T, sx_mf, label="mean field")
+# PyPlot.plot(T, sx_mpc, label="mpc")
+# PyPlot.xlabel("Time")
+# PyPlot.ylabel(L"\langle \sigma_x \rangle")
+# PyPlot.legend()
 
-PyPlot.subplot(312)
-PyPlot.plot(T, sy_master, label="master")
-PyPlot.plot(T, sy_mf, label="mean field")
-PyPlot.plot(T, sy_mpc, label="mpc")
-PyPlot.xlabel("Time")
-PyPlot.ylabel(L"\langle \sigma_y \rangle")
-PyPlot.legend()
+# PyPlot.subplot(312)
+# PyPlot.plot(T, sy_master, label="master")
+# PyPlot.plot(T, sy_mf, label="mean field")
+# PyPlot.plot(T, sy_mpc, label="mpc")
+# PyPlot.xlabel("Time")
+# PyPlot.ylabel(L"\langle \sigma_y \rangle")
+# PyPlot.legend()
 
-PyPlot.subplot(313)
-PyPlot.plot(T, sz_master, label="master")
-PyPlot.plot(T, sz_mf, label="mean field")
-PyPlot.plot(T, sz_mpc, label="mpc")
-PyPlot.xlabel("Time")
-PyPlot.ylabel(L"\langle \sigma_z \rangle")
-PyPlot.legend()
-display(fig)
+# PyPlot.subplot(313)
+# PyPlot.plot(T, sz_master, label="master")
+# PyPlot.plot(T, sz_mf, label="mean field")
+# PyPlot.plot(T, sz_mpc, label="mpc")
+# PyPlot.xlabel("Time")
+# PyPlot.ylabel(L"\langle \sigma_z \rangle")
+# PyPlot.legend()
+# display(fig)
 
-fig_1 = PyPlot.figure(figsize=(8, 12))
-PyPlot.subplot(311)
-PyPlot.plot(T, Cxx_master, label="master")
-PyPlot.plot(T, Cxx_mpc, label="mpc")
-PyPlot.xlabel("Time")
-PyPlot.ylabel(L"\langle \sigma_4^x \sigma_5^x \rangle")
-PyPlot.legend()
+# fig_1 = PyPlot.figure(figsize=(8, 12))
+# PyPlot.subplot(311)
+# PyPlot.plot(T, Cxx_master, label="master")
+# PyPlot.plot(T, Cxx_mpc, label="mpc")
+# PyPlot.xlabel("Time")
+# PyPlot.ylabel(L"\langle \sigma_4^x \sigma_5^x \rangle")
+# PyPlot.legend()
 
-PyPlot.subplot(312)
-PyPlot.plot(T, Cxy_master, label="master")
-PyPlot.plot(T, Cxy_mpc, label="mpc")
-PyPlot.xlabel("Time")
-PyPlot.ylabel(L"\langle \sigma_4^x \sigma_5^y \rangle")
-PyPlot.legend()
+# PyPlot.subplot(312)
+# PyPlot.plot(T, Cxy_master, label="master")
+# PyPlot.plot(T, Cxy_mpc, label="mpc")
+# PyPlot.xlabel("Time")
+# PyPlot.ylabel(L"\langle \sigma_4^x \sigma_5^y \rangle")
+# PyPlot.legend()
 
-PyPlot.subplot(313)
-PyPlot.plot(T, Cyz_master, label="master")
-PyPlot.plot(T, Cyz_mpc, label="mpc")
-PyPlot.xlabel("Time")
-PyPlot.ylabel(L"\langle \sigma_4^y \sigma_5^z \rangle")
-PyPlot.legend()
-display(fig_1)
+# PyPlot.subplot(313)
+# PyPlot.plot(T, Cyz_master, label="master")
+# PyPlot.plot(T, Cyz_mpc, label="mpc")
+# PyPlot.xlabel("Time")
+# PyPlot.ylabel(L"\langle \sigma_4^y \sigma_5^z \rangle")
+# PyPlot.legend()
+# display(fig_1)

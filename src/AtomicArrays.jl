@@ -1,3 +1,6 @@
+"""
+AtomicArrays.jl is a numerical framework that can be used to simulate quantum systems consisting of spatially distributed spins interacting via Dipole-Dipole interaction, optionally coupled to a cavity.
+"""
 module AtomicArrays
 
 export System, Spin, SpinCollection, CavityMode, CavitySpinCollection,
@@ -12,14 +15,17 @@ export System, Spin, SpinCollection, CavityMode, CavitySpinCollection,
 
 include("system.jl")
 include("timeevolution_base.jl")
+include("geometry.jl")
 include("interaction.jl")
 include("effective_interaction.jl")
+include("effective_interaction_general.jl")
+include("effective_interaction_rotated.jl")
 include("field.jl")
 include("quantum.jl")
 include("reducedspin.jl")
+include("independent.jl")
 include("meanfield.jl")
 include("mpc.jl")
-include("geometry.jl")
 include("collective_modes.jl")
 include("misc.jl")
 

@@ -1,6 +1,5 @@
 # Comparison with Shahmoon results. 2D lattice of spins: incident field and evolution
 
-using CollectiveSpins
 using QuantumOptics
 using PyPlot
 using LinearAlgebra, BenchmarkTools
@@ -9,6 +8,7 @@ using AtomicArrays
 const EMField = AtomicArrays.field.EMField
 const sigma_matrices = AtomicArrays.meanfield.sigma_matrices
 const mapexpect = AtomicArrays.meanfield.mapexpect
+SpinCollection = AtomicArrays.SpinCollection
 
 dag(x) = conj(transpose(x))
 
@@ -27,7 +27,7 @@ Ny = 26
 Nz = 1  # number of arrays
 d = 0.707 * lam_0
 k_0 = 2*π / lam_0
-pos = geometry.rectangle(d, d; Nx=Nx, Ny=Ny)
+pos = AtomicArrays.geometry.rectangle(d, d; Nx=Nx, Ny=Ny)
 # shift the origin of the array
 p_x0 = pos[1][1]
 p_xN = pos[end][1]
@@ -100,21 +100,21 @@ E_vec = [em_inc_function(S.spins[k].position, E_inc)
          for k = 1:Nx*Ny*Nz]
 Om_R = AtomicArrays.field.rabi(E_vec, μ)
 
-const T = [0:1.0:1000;]
+const T = [0:1.0:100;]
 # Initial state (Bloch state)
 const phi = 0.
 const theta = pi/1.
 # Meanfield
-state0 = CollectiveSpins.meanfield.blochstate(phi, theta, Nx*Ny*Nz)
+state0 = AtomicArrays.meanfield.blochstate(phi, theta, Nx*Ny*Nz)
 tout, state_mf_t = AtomicArrays.meanfield.timeevolution_field(T, S, Om_R, state0)
 
 
 # Expectation values
 num_at = 25
 
-sx_mf = mapexpect(CollectiveSpins.meanfield.sx, state_mf_t, num_at)
-sy_mf = mapexpect(CollectiveSpins.meanfield.sy, state_mf_t, num_at)
-sz_mf = mapexpect(CollectiveSpins.meanfield.sz, state_mf_t, num_at)
+sx_mf = mapexpect(AtomicArrays.meanfield.sx, state_mf_t, num_at)
+sy_mf = mapexpect(AtomicArrays.meanfield.sy, state_mf_t, num_at)
+sz_mf = mapexpect(AtomicArrays.meanfield.sz, state_mf_t, num_at)
 sm_mf = 0.5*(sx_mf - 1im.*sy_mf)
 sp_mf = 0.5*(sx_mf + 1im.*sy_mf)
 
@@ -305,40 +305,40 @@ PyPlot.colorbar()
 
 zlim = 1*d*(Nx)
 @time tran, points = AtomicArrays.field.transmission_reg(E_inc, em_inc_function,
-                                       S, sm_mat; samples=40000, zlim=zlim, angle=[π, π]);
+                                       S, sm_mat; samples=400, zlim=zlim, angle=[π, π]);
 tran
 
 
 """Plot radiation pattern"""
 
-using GLMakie
+# using GLMakie
 
-x_p = [points[i][1] for i = 1:length(points)]
-y_p = [points[i][2] for i = 1:length(points)]
-z_p = [points[i][3] for i = 1:length(points)]
+# x_p = [points[i][1] for i = 1:length(points)]
+# y_p = [points[i][2] for i = 1:length(points)]
+# z_p = [points[i][3] for i = 1:length(points)]
 
-#PyPlot.figure()
-#PyPlot.scatter3D(x_p, y_p,z_p)
+# #PyPlot.figure()
+# #PyPlot.scatter3D(x_p, y_p,z_p)
 
-tf = AtomicArrays.field.total_field
-positions = vec([(x_p[i], y_p[i], z_p[i]) for i in 1:length(x_p)])
-vals = [norm(tf(em_inc_function,points[ip],E_inc,S, sm_mat))^2/norm(E_ampl)^2
-        for ip in 1:length(points)]
-fig, ax, pltobj = GLMakie.meshscatter(positions, color = vec(vals),
-    marker = FRect3D(Vec3f0(3), Vec3f0(3)), # here, if you use less than 10, you will see smaller squares.
-    colormap = :bwr, colorrange = (minimum(vals), maximum(vals)),
-    transparency = false, # set to false, if you don't want the transparency.
-    shading= true,
-    figure = (; resolution = (800,800)),
-    axis=(; type=Axis3, perspectiveness = 0.5,  azimuth = 7.19, elevation = 0.57,
-        xlabel = "x", ylabel = "y", zlabel = "z",
-        aspect = (1,1,1/2)))
-cbar = GLMakie.Colorbar(fig, pltobj, label = L"|E_{tot}|^2 / |E_0|^2", height = Relative(0.5))
-GLMakie.xlims!(ax,-1.2*zlim,1.2*zlim)
-GLMakie.ylims!(ax,-1.2*zlim,1.2*zlim)
-GLMakie.zlims!(ax, (E_angle[1] >= π/2) ? -1.2*zlim : 0,
-               (E_angle[1] >= π/2) ? 0 : 0 + 1.2*zlim)
-fig[1,2] = cbar
-fig
+# tf = AtomicArrays.field.total_field
+# positions = vec([(x_p[i], y_p[i], z_p[i]) for i in 1:length(x_p)])
+# vals = [norm(tf(em_inc_function,points[ip],E_inc,S, sm_mat))^2/norm(E_ampl)^2
+#         for ip in 1:length(points)]
+# fig, ax, pltobj = GLMakie.meshscatter(positions, color = vec(vals),
+#     marker = FRect3D(Vec3f0(3), Vec3f0(3)), # here, if you use less than 10, you will see smaller squares.
+#     colormap = :bwr, colorrange = (minimum(vals), maximum(vals)),
+#     transparency = false, # set to false, if you don't want the transparency.
+#     shading= true,
+#     figure = (; resolution = (800,800)),
+#     axis=(; type=Axis3, perspectiveness = 0.5,  azimuth = 7.19, elevation = 0.57,
+#         xlabel = "x", ylabel = "y", zlabel = "z",
+#         aspect = (1,1,1/2)))
+# cbar = GLMakie.Colorbar(fig, pltobj, label = L"|E_{tot}|^2 / |E_0|^2", height = Relative(0.5))
+# GLMakie.xlims!(ax,-1.2*zlim,1.2*zlim)
+# GLMakie.ylims!(ax,-1.2*zlim,1.2*zlim)
+# GLMakie.zlims!(ax, (E_angle[1] >= π/2) ? -1.2*zlim : 0,
+#                (E_angle[1] >= π/2) ? 0 : 0 + 1.2*zlim)
+# fig[1,2] = cbar
+# fig
 
 #write("../Data/test.bin", I)

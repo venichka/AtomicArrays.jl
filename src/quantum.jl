@@ -37,7 +37,7 @@ basis(x::Spin) = spinbasis
 basis(x::SpinCollection) = CompositeBasis([basis(s) for s=x.spins]...)
 basis(N::Int) = CompositeBasis([spinbasis for s=1:N]...)
 basis(x::CavityMode) = FockBasis(x.cutoff)
-basis(x::CavitySpinCollection) = compose(basis(x.cavity), basis(x.spincollection))
+basis(x::CavitySpinCollection) = CompositeBasis(basis(x.cavity), basis(x.spincollection))
 
 
 """
@@ -203,7 +203,7 @@ function JumpOperators_diagonal(S::SpinCollection)
     b = basis(S)
     Γ = [interaction.Gamma(spins[i].position, spins[j].position, S.polarizations[i], S.polarizations[j], S.gammas[i], S.gammas[j],
     S.spins[i].delta, S.spins[j].delta) for i=1:N, j=1:N]
-    λ, M = eig(Γ)
+    λ, M = eigen(Γ)
     J = Any[]
     for i=1:N
         op = Operator(b)
