@@ -91,6 +91,28 @@ The chain starts at the origin and continues into positive x-direction.
 """
 chain(a::T, N::Int) where T<:Real = [[i*a, zero(T), zero(T)] for i=0:N-1]
 
+
+"""
+    geometry.chain_dir(a, N; dir="z", pos_0=[0, 0, 0])
+Positions of spins on a chain in a specified direction.
+The chain starts at the origin and continues into positive x-direction.
+# Arguments
+* `a`: Spin-spin distance.
+* `N`: Number of spins
+* `dir = "z"`: direction of a chain
+* `pos_0 = [0, 0, 0]`: position of the first atom
+"""
+function chain_dir(a::T, N::Int; dir::String="z", pos_0::Vector=[0.0, 0.0, 0.0]) where T<:Real
+    if dir == "x"
+        return [[i*a + pos_0[1], zero(T) + pos_0[2], zero(T) + pos_0[3]] for i=0:N-1]
+    elseif dir == "y"
+        return [[zero(T) + pos_0[1], i*a + pos_0[2], zero(T) + pos_0[3]] for i=0:N-1]
+    elseif dir == "z"
+        return [[zero(T) + pos_0[1], zero(T) + pos_0[2], i*a + pos_0[3]] for i=0:N-1]
+    end
+end
+
+
 """
     geometry.triangle(a)
 Positions of spins on a equilateral triangle in the xy-plane with edge length `a`.
