@@ -144,6 +144,18 @@ function rabi(E_vec::Vector, polarisation::Vector)
     Ω_R = [(conj(μ[i]')*conj(E_vec[i]))/sqrt(sum(μ[i][j]*conj(μ[i][j]) for j=1:3)) for i=1:n]
     return Ω_R
 end
+function rabi(E_vec::Vector, atom_coll::SpinCollection)
+    μ = atom_coll.polarizations
+    n = length(atom_coll.spins)
+    Ω_R = [(conj(μ[j]')*conj(E_vec[j])) for j=1:n]
+    return Ω_R
+end
+function rabi(E_vec::Vector, atom_coll::FourLevelAtomCollection)
+    μ = atom_coll.polarizations
+    n = length(atom_coll.atoms)
+    Ω_R = [(conj(μ[i, :, j]')*conj(E_vec[j])) for i=1:3, j=1:n]
+    return Ω_R
+end
 
 
 """

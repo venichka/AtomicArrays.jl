@@ -4,6 +4,7 @@ AtomicArrays.jl is a numerical framework that can be used to simulate quantum sy
 module AtomicArrays
 
 export System, Spin, SpinCollection, CavityMode, CavitySpinCollection,
+        FourLevelAtom, FourLevelAtomCollection, CavityFourLevelAtomCollection,
         GreenTensor, OmegaMatrix, GammaMatrix,
         interaction, field, geometry,
         reducedspin, ReducedSpinBasis, reducedspintransition, reducedspinstate,

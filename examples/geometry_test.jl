@@ -1,4 +1,13 @@
-using CollectiveSpins, QuantumOptics, LinearAlgebra
+if pwd()[end-14:end] == "AtomicArrays.jl"
+  PATH_ENV = "."
+else
+  PATH_ENV = "../"
+end
+
+using Pkg
+Pkg.activate(PATH_ENV)
+
+using QuantumOptics, LinearAlgebra
 using BenchmarkTools
 using Plots
 
