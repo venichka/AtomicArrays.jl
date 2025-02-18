@@ -150,10 +150,28 @@ function rabi(E_vec::Vector, atom_coll::SpinCollection)
     Ω_R = [(conj(μ[j]')*conj(E_vec[j])) for j=1:n]
     return Ω_R
 end
+function rabi(E::Field, field_function::Function,
+              atom_coll::SpinCollection)
+    atoms = atom_coll.spins
+    n = length(atoms)
+    μ = atom_coll.polarizations
+    Ω_R = [conj(μ[j]')*conj(field_function(atoms[j].position, E)) 
+           for j=1:n]
+    return Ω_R
+end
 function rabi(E_vec::Vector, atom_coll::FourLevelAtomCollection)
     μ = atom_coll.polarizations
     n = length(atom_coll.atoms)
     Ω_R = [(conj(μ[i, :, j]')*conj(E_vec[j])) for i=1:3, j=1:n]
+    return Ω_R
+end
+function rabi(E::Field, field_function::Function,
+              atom_coll::FourLevelAtomCollection)
+    atoms = atom_coll.atoms
+    n = length(atoms)
+    μ = atom_coll.polarizations
+    Ω_R = [conj(μ[i, :, j]')*conj(field_function(atoms[j].position, E)) 
+           for i=1:3, j=1:n]
     return Ω_R
 end
 

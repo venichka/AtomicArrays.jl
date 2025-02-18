@@ -119,23 +119,17 @@ A single 4-level atom.
 - `Ee::Real`: Reference excited-state energy.
 - `deltas::Vector{<:Real}`: Must have length = 3 (for the 3 excited sublevels: m = -1, 0, 1).
 """
-struct FourLevelAtom{P<:AbstractVector{<:Real},T<:Real,V<:AbstractVector{<:Real}} <: System
+struct FourLevelAtom{P<:AbstractVector{<:Real},T<:Real} <: System
     position::P
-    Eg::T
-    Ee::T
-    deltas::V
+    delta::T
 end
 
 """
-Constructor with checks:
-- `deltas` must be length 3.
+Constructor
 """
 function FourLevelAtom(position::Vector{<:Real};
-                       Eg::Real=0.0,
-                       Ee::Real=1.0,
-                       deltas::Vector{<:Real}=[0.0, 0.0, 0.0])
-    @assert length(deltas) == 3 "deltas must be a 3-element vector for the 3 excited transitions."
-    return FourLevelAtom(position, Eg, Ee, deltas)
+                       delta::Real=0.0)
+    return FourLevelAtom(position, delta)
 end
 
 
@@ -251,18 +245,18 @@ We create the `atoms` array, then forward to the main constructor.
 """
 function FourLevelAtomCollection(
     positions::Vector{<:AbstractVector{<:Real}};
-    Eg::Real=0.0,
-    Ee::Real=1.0,
-    # deltas::Vector{<:Real}=[0.0,0.0,0.0],
-    deltas::Vector{<:AbstractVector{<:Real}} = [[0.0,0.0,0.0]],
+    # Eg::Real=0.0,
+    # Ee::Real=1.0,
+    # deltas::Vector{<:AbstractVector{<:Real}} = [[0.0,0.0,0.0]],
+    deltas::Vector{<:Real} = [0.0],
     polarizations::Union{Nothing,Array{<:Complex,3}}=nothing,
     gammas::Union{Nothing,Array{<:Real,2}}=nothing
 )
     if length(deltas) == 1
-        atoms = [FourLevelAtom(pos; Eg=Eg, Ee=Ee, deltas=deltas[1]) for pos in positions]
+        atoms = [FourLevelAtom(pos; delta=deltas[1]) for pos in positions]
     else
         @assert length(deltas) == length(positions) "Size of deltas must be equal to positions size."
-        atoms = [FourLevelAtom(positions[i]; Eg=Eg, Ee=Ee, deltas=deltas[i]) for i in eachindex(positions)]
+        atoms = [FourLevelAtom(positions[i]; delta=deltas[i]) for i in eachindex(positions)]
     end
     return FourLevelAtomCollection(
         atoms; polarizations=polarizations, gammas=gammas

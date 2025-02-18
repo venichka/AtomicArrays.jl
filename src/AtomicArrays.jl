@@ -29,6 +29,8 @@ include("meanfield.jl")
 include("mpc.jl")
 include("collective_modes.jl")
 include("misc.jl")
+include("fourlevel_quantum.jl")
+include("fourlevel_misc.jl")
 
 using .field
 using .interaction
@@ -40,5 +42,7 @@ using .effective_interaction
 using .geometry
 using .collective_modes
 using .misc
+using .fourlevel_quantum
+using .fourlevel_misc
 
 end # module

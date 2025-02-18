@@ -1,4 +1,5 @@
 names = [
+    "test_fourlevel_quantum.jl",
     "test_meanfield_with_field.jl",
 ]
 

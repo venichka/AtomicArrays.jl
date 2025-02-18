@@ -1,6 +1,5 @@
 using Test
 using QuantumOptics
-using CollectiveSpins
 using AtomicArrays
 
 @testset "meanfield-with-field" begin
@@ -17,17 +16,17 @@ sz = sigmaz(spinbasis)
 sp = sigmap(spinbasis)
 sm = sigmam(spinbasis)
 
-systemgeometry = CollectiveSpins.geometry.chain(0.3, 2)
-system = CollectiveSpins.SpinCollection(systemgeometry, edipole; gammas=γ)
-basis = CollectiveSpins.quantum.basis(system)
+systemgeometry = AtomicArrays.geometry.chain(0.3, 2)
+system = AtomicArrays.SpinCollection(systemgeometry, edipole; gammas=γ)
+basis = AtomicArrays.quantum.basis(system)
 I = identityoperator(spinbasis)
 
-H = CollectiveSpins.quantum.Hamiltonian(system)
-Γ, J = CollectiveSpins.quantum.JumpOperators(system)
+H = AtomicArrays.quantum.Hamiltonian(system)
+Γ, J = AtomicArrays.quantum.JumpOperators(system)
 Jdagger = [dagger(j) for j=J]
-Ω = CollectiveSpins.interaction.OmegaMatrix(system)
+Ω = AtomicArrays.interaction.OmegaMatrix(system)
 
-Ψ₀ = CollectiveSpins.quantum.blochstate(0., pi/2., N)
+Ψ₀ = AtomicArrays.quantum.blochstate(0., pi/2., N)
 ρ₀ = Ψ₀ ⊗ dagger(Ψ₀)
 
 phi1 = 1.3
@@ -120,6 +119,6 @@ function test_meanfield(t, ρ)
     @test abs(dsz_master_rot - dsz_rot) <1e-12
 end
 
-CollectiveSpins.quantum.timeevolution(T, system, ρ₀; fout=test_meanfield)
+AtomicArrays.quantum.timeevolution(T, system, ρ₀; fout=test_meanfield)
 
 end # testset

@@ -4,7 +4,7 @@ using ..AtomicArrays
 
 using LinearAlgebra
 
-export GreenTensor, OmegaMatrix, GammaMatrix
+export GreenTensor, OmegaMatrix, GammaMatrix, OmegaTensor_4level, GammaTensor_4level
 
 
 """
@@ -16,7 +16,7 @@ Arguments:
 * µi: Dipole orientation of first spin.
 * µj: Dipole orientation of second spin.
 * ki: module of k vector (ω₁/c) of first spin.
-* ki: module of k vector (ω₂/c) of second spin.
+* kj: module of k vector (ω₂/c) of second spin.
 """
 function F(ri::Vector, rj::Vector, µi::Vector, µj::Vector, 
            ki::Real, kj::Real)
@@ -44,7 +44,7 @@ Arguments:
 * µi: Dipole orientation of first spin.
 * µj: Dipole orientation of second spin.
 * ki: k number (ω₁/c) of first spin.
-* ki: k number (ω₂/c) of second spin.
+* kj: k number (ω₂/c) of second spin.
 """
 function G(ri::Vector, rj::Vector, µi::Vector, µj::Vector,
            ki::Real, kj::Real)
@@ -136,7 +136,7 @@ end
 
 
 """
-    GreenTensor(r::Vector, k::Number=2π)
+    interaction.GreenTensor(r::Vector, k::Number=2π)
 Calculate the Green's Tensor at position r for wave number k defined by
 ```math
 G = e^{ikr}\\Big[\\left(\\frac{1}{kr} + \\frac{i}{(kr)^2} - \\frac{1}{(kr)^3}\\right)*I -
@@ -153,6 +153,36 @@ function GreenTensor(r::Vector{<:Number},k::Real=2π)
         (1/(k*n) + im/(k*n)^2 - 1/(k*n)^3).*Matrix(I,3,3) +
         -(1/(k*n) + 3im/(k*n)^2 - 3/(k*n)^3).*(rn*rn')
     )
+end
+
+"""
+    interaction.OmegaTensor_4level
+Dimensions: NxNx3x3 -- atom i, atom j, polarization k, polarization m
+"""
+function OmegaTensor_4level(A::FourLevelAtomCollection)
+    atoms = A.atoms
+    mu = A.polarizations
+    gamma = A.gammas
+    N = length(atoms)
+    return [
+        Omega(atoms[i].position, atoms[j].position, mu[k,:,i], mu[m,:,j], gamma[k, i], gamma[m, j], atoms[i].delta+2π, atoms[j].delta+2π)
+        for i=1:N, j=1:N, k=1:3, m=1:3
+    ]
+end
+
+"""
+    interaction.GammaTensor_4level
+Dimensions: NxNx3x3 -- atom i, atom j, polarization k, polarization m
+"""
+function GammaTensor_4level(A::FourLevelAtomCollection)
+    atoms = A.atoms
+    mu = A.polarizations
+    gamma = A.gammas
+    N = length(atoms)
+    return [
+        Gamma(atoms[i].position, atoms[j].position, mu[k,:,i], mu[m,:,j], gamma[k, i], gamma[m, j], atoms[i].delta+2π, atoms[j].delta+2π)
+        for i=1:N, j=1:N, k=1:3, m=1:3
+    ]
 end
 
 end # module
