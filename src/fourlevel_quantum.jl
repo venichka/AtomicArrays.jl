@@ -31,7 +31,7 @@ const sigma_e_plus_e_plus_ = transition(atombasis, idx_e_plus, idx_e_plus)
 sigmas_ge_ = [sigma_ge_minus_, sigma_ge_0_, sigma_ge_plus_]
 sigmas_eg_ = dagger.([sigma_ge_minus_, sigma_ge_0_, sigma_ge_plus_])
 sigmas_ee_ = [sigma_e_minus_e_minus_, sigma_e_0_e_0_, sigma_e_plus_e_plus_]
-# Projection operators in cacartesian basis
+# Projection operators in cartesian basis
 const sigma_gx_ = sigma_ge_minus_
 const sigma_gy_ = sigma_ge_0_
 const sigma_gz_ = sigma_ge_plus_
@@ -188,10 +188,15 @@ end
 Jump operators of the given system.
 - J_mi has dimensions 3xN, where first is the number of sublevel transitions related to m = [-1, 0, +1]
 """
-function JumpOperators(A::FourLevelAtomCollection)
+function JumpOperators(A::FourLevelAtomCollection; flatten=false)
     J = SparseOpType[embed(basis(A), j, sigmas_ge_[m]) 
-                     for m=1:size(A.polarizations,1), j=1:length(A.atoms)]
-    Γ = interaction.GammaTensor_4level(A)
+                    for m=1:size(A.polarizations,1), j=1:length(A.atoms)]
+    if flatten
+        J = vcat(J...)
+        Γ = interaction.GammaMatrix_4level(A)
+    else
+        Γ = interaction.GammaTensor_4level(A)
+    end
     return Γ, J
 end
 

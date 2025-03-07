@@ -6,6 +6,7 @@ using LinearAlgebra
 
 export GreenTensor, OmegaMatrix, GammaMatrix, OmegaTensor_4level, GammaTensor_4level
 
+const N_sublevels = 3
 
 """
     interaction.F(ri::Vector, rj::Vector, µi::Vector, µj::Vector, ki::Real, kj::Real)
@@ -165,9 +166,40 @@ function OmegaTensor_4level(A::FourLevelAtomCollection)
     gamma = A.gammas
     N = length(atoms)
     return [
-        Omega(atoms[i].position, atoms[j].position, mu[k,:,i], mu[m,:,j], gamma[k, i], gamma[m, j], atoms[i].delta+2π, atoms[j].delta+2π)
-        for i=1:N, j=1:N, k=1:3, m=1:3
+        (i == j && k != m) ? 0.0 : Omega(atoms[i].position, atoms[j].position, mu[k,:,i], mu[m,:,j], gamma[k, i], gamma[m, j], atoms[i].delta+2π, atoms[j].delta+2π)
+        for i=1:N, j=1:N, k=1:N_sublevels, m=1:N_sublevels
     ]
+end
+
+# TODO: check the correctnes of flattening
+
+"""
+    interaction.OmegaMatrix_4level
+Dimensions: 3Nx3N -- including atoms and all 3 transitions
+"""
+function OmegaMatrix_4level(A::FourLevelAtomCollection)
+    atoms = A.atoms
+    mu = A.polarizations
+    gamma = A.gammas
+    N = length(atoms)
+    M = N_sublevels * N  # matrix rank (3 transitions, N atoms)
+    Omega_matrix = zeros(ComplexF64, M, M)
+    for n = 1:N
+        for m = 1:N_sublevels
+            i = N_sublevels*(n - 1) + m
+            for nprime = 1:N
+                for mprime = 1:N_sublevels
+                    j = N_sublevels * (nprime - 1) + mprime
+                    Omega_matrix[i,j] = (n==nprime && m!=mprime) ? 0.0 : Omega(
+                        atoms[n].position, atoms[nprime].position,
+                        mu[m,:,n], mu[mprime,:,nprime],
+                        gamma[m, n], gamma[mprime, nprime],
+                        atoms[n].delta+2π, atoms[nprime].delta+2π)
+                end
+            end
+        end
+    end
+    return Omega_matrix
 end
 
 """
@@ -180,9 +212,38 @@ function GammaTensor_4level(A::FourLevelAtomCollection)
     gamma = A.gammas
     N = length(atoms)
     return [
-        Gamma(atoms[i].position, atoms[j].position, mu[k,:,i], mu[m,:,j], gamma[k, i], gamma[m, j], atoms[i].delta+2π, atoms[j].delta+2π)
-        for i=1:N, j=1:N, k=1:3, m=1:3
+        (i == j && k != m) ? 0.0 : Gamma(atoms[i].position, atoms[j].position, mu[k,:,i], mu[m,:,j], gamma[k, i], gamma[m, j], atoms[i].delta+2π, atoms[j].delta+2π)
+        for i=1:N, j=1:N, k=1:N_sublevels, m=1:N_sublevels
     ]
+end
+
+"""
+    interaction.GammaMatrix_4level
+Dimensions: 3Nx3N -- including atoms and all 3 transitions
+"""
+function GammaMatrix_4level(A::FourLevelAtomCollection)
+    atoms = A.atoms
+    mu = A.polarizations
+    gamma = A.gammas
+    N = length(atoms)
+    M = N_sublevels * N  # matrix rank (3 transitions, N atoms)
+    Gamma_matrix = zeros(ComplexF64, M, M)
+    for n = 1:N
+        for m = 1:N_sublevels
+            i = N_sublevels*(n - 1) + m
+            for nprime = 1:N
+                for mprime = 1:N_sublevels
+                    j = N_sublevels * (nprime - 1) + mprime
+                    Gamma_matrix[i,j] = (n==nprime && m!=mprime) ? 0.0 : Gamma(
+                        atoms[n].position, atoms[nprime].position,
+                        mu[m,:,n], mu[mprime,:,nprime],
+                        gamma[m, n], gamma[mprime, nprime],
+                        atoms[n].delta+2π, atoms[nprime].delta+2π)
+                end
+            end
+        end
+    end
+    return Gamma_matrix
 end
 
 end # module
