@@ -78,7 +78,8 @@ function Hamiltonian(A::FourLevelAtomCollection; magnetic_field=nothing,
         for m = 1:N_sublevels
             if atoms[i].delta != 0.0
                 H += atoms[i].delta*embed(b,i,sigmas_ee_[m])
-            elseif magnetic_field  !== nothing && m != 2
+            end
+            if magnetic_field  !== nothing && m != 2
                 B = magnetic_field
                 H += sublevels_m[m] * B *embed(b,i,sigmas_ee_[m])
             end
@@ -144,7 +145,8 @@ function Hamiltonian_nh(A::FourLevelAtomCollection; magnetic_field=nothing,
         for m = 1:N_sublevels
             if atoms[i].delta != 0.0
                 H += atoms[i].delta*embed(b,i,sigmas_ee_[m])
-            elseif magnetic_field  !== nothing && m != 2
+            end
+            if magnetic_field  !== nothing && m != 2
                 B = magnetic_field
                 H += sublevels_m[m] * B *embed(b,i,sigmas_ee_[m])
             end
