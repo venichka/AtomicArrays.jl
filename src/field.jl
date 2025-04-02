@@ -177,6 +177,36 @@ end
 
 
 """
+field.scattered_field(r::Vector, S::SpinCollection, sigmam::Vector)
+Function computes the total field at position r:
+# Arguments
+* `r`: Position [r_x, r_y, r_z]
+* `S`: Spin collection.
+* `sigmam`: Vector of steady-state values of σⱼ for each spin
+# Output
+* `E_{sc}`: Vector of total field at r
+"""
+function scattered_field(r::Vector, S::SpinCollection,
+                         sigmam::Vector, k_field::Number=2π)
+    # TODO: k in Green's tensor and in scattered field
+    n = length(S.gammas)
+    C = 3.0/4.0.*S.gammas./LinearAlgebra.norm.(S.polarizations).^2   # (k_0/4.0/pi) * 3.0*pi/k_0.*γ_e./(norm.(μ).^2)
+                                    # took into account factor k/(4π) in Green Tensor
+    return sum(C[i]*sigmam[i]*GreenTensor(r-S.spins[i].position, k_field)*
+               S.polarizations[i]
+               for i=1:n)
+end
+function scattered_field(r::Vector, A::AtomicArrays.FourLevelAtomCollection,
+    sigmas_m::Matrix, k_field::Number=2π)
+    M, N = size(A.gammas)
+    C = 3.0/4.0 * A.gammas
+    return sum(C[m,n] * sigmas_m[m,n] * 
+               GreenTensor(r-A.atoms[n].position, k_field) *
+               A.polarizations[m,:,n] for m = 1:M, n = 1:N)
+end
+
+
+"""
 field.total_field(inc_wave_function::Function, r::Vector,
                          E::Field, S::SpinCollection, sigmam::Vector)
 Function computes the total field at position r:
@@ -201,31 +231,11 @@ function total_field(inc_wave_function::Function, r::Vector, E::Field,
                    S.polarizations[i]
                    for i=1:n)
 end
-
-
-"""
-field.scattered_field(r::Vector, S::SpinCollection, sigmam::Vector)
-Function computes the total field at position r:
-# Arguments
-* `r`: Position [r_x, r_y, r_z]
-* `S`: Spin collection.
-* `sigmam`: Vector of steady-state values of σⱼ for each spin
-# Output
-* `E_{sc}`: Vector of total field at r
-"""
-function scattered_field(r::Vector, S::SpinCollection,
-                         sigmam::Vector, k_field::Number=2π)
-    # TODO: k in Green's tensor and in scattered field
-    n = length(S.gammas)
-    C = 3.0/4.0.*S.gammas./LinearAlgebra.norm.(S.polarizations).^2   # (k_0/4.0/pi) * 3.0*pi/k_0.*γ_e./(norm.(μ).^2)
-                                    # took into account factor k/(4π) in Green Tensor
-    return sum(C[i]*sigmam[i]*GreenTensor(r-S.spins[i].position, k_field)*
-               S.polarizations[i]
-               for i=1:n)
-end
-function scattered_field(r::Vector, A::FourLevelAtomCollection,
-                         sigmas_m::Matrix, k_field::Number=2π)
-
+function total_field(inc_wave_function::Function, r::Vector, E::Field,
+                     A::FourLevelAtomCollection, sigmas_m::Matrix,
+                     k_field::Number=2π)
+    E_inc = inc_wave_function(r, E)
+    return E_inc + scattered_field(r, A, sigmas_m, k_field)
 end
 
 
