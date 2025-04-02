@@ -17,99 +17,8 @@ using AtomicArrays
 using LinearAlgebra
 using QuantumOptics
 
-# Build the collection
-positions = [
-    [0.0, 0.0, 0.0],
-    [0.2, 0.0, 0.0],
-    [0.4, 0.0, 0.0],
-    [0.6, 0.0, 0.0]
-]
-N = length(positions)
-
-pols = AtomicArrays.polarizations_spherical(N)
-gam = [AtomicArrays.gammas(0.15)[m] for m=1:3, j=1:N]
-deltas = [0.0 for i = 1:N]
-deltas = [0.1, 0.0, 0.0, 0.0]
-
-coll = AtomicArrays.FourLevelAtomCollection(positions;
-    deltas = deltas,
-    polarizations = pols,
-    gammas = gam
-)
-
-println("Constructed FourLevelAtomCollection with realistic sublevel polarizations.")
-println("pols size = ", size(coll.polarizations))
-
-# Define a plane wave field in +y direction:
-amplitude = 0.2
-k_mod = 2π
-angle_k = [0.0, π/2]  # => +y direction
-polarisation = [1.0, 0.0, 0.0]
-pos_0 = [0.0, 0.0, 0.0]
-
-field = AtomicArrays.field.EMField(amplitude, k_mod, angle_k, polarisation; position_0=pos_0)
-external_drive = AtomicArrays.field.rabi(field, AtomicArrays.field.plane, coll)
-
-println("Computed external_drive = ", external_drive)
-
-# Build the Hamiltonian and jump operators
-H = AtomicArrays.fourlevel_quantum.Hamiltonian(coll; magnetic_field=0.1,
-                external_drive=external_drive,
-                dipole_dipole=true)
-
-Γ, J_ops = AtomicArrays.fourlevel_quantum.JumpOperators(coll; flatten=false)
-size(Γ)
-size(J_ops)
-eigen(Γ)
-Γ == transpose(Γ)
-
-Ω = AtomicArrays.interaction.OmegaTensor_4level(coll)
-
 function comm(A, B)
     return A*B - B*A
-end
-
-(comm(dagger(J_ops[1,1])*J_ops[1,1], J_ops[2,3])).data
-(comm(dagger(J_ops[1,1]), J_ops[3,1]) - dagger(J_ops[1,1])*J_ops[3,1]).data
-(dagger(J_ops[1,1])*J_ops[2,1]*J_ops[3,4]).data
-(J_ops[1,1]*dagger(J_ops[1,1])*J_ops[2,4]).data
-(J_ops[1,1]*dagger(J_ops[1,1])).data
-(J_ops[1,1]*J_ops[3,2]).data
-
-(comm(J_ops[3,2], J_ops[3,1])).data
-
-Γ[1,1,2,3]
-
-let 
-    n = 1
-    m = 3
-    t = sum([(n == n2) ? 0*J_ops[1,1] : 
-        2*dagger(J_ops[m1, n1])*J_ops[m,n]*J_ops[m2,n2] - 
-        dagger(J_ops[m1, n1])*J_ops[m2,n2]*J_ops[m,n] -
-        J_ops[m,n]*dagger(J_ops[m1, n1])*J_ops[m2,n2] for n1 = 1:N, n2 = 1:N, 
-                                                          m1 = 1:3, m2 = 1:3])
-   t.data 
-end
-
-# Print summary
-println("Hamiltonian dimension = ", size(H.data))
-println("Number of jump ops = ", length(J_ops), "  => each is dimension ", size(J_ops[1].data))
-
-# time evolution
-b = AtomicArrays.fourlevel_quantum.basis(coll)
-# initial state => all ground
-ψ0 = basisstate(b, [AtomicArrays.fourlevel_quantum.idx_g for i = 1:N])
-ρ0 = dm(ψ0)
-tspan = [0.0:0.1:200.0;]
-t, rho_t = timeevolution.master_h(tspan, ψ0, H, J_ops; rates=Γ)
-
-println("Done.")
-
-begin
-    Pkg.activate(temp=true)   # or PATH_ENV if you want to reuse your local approach
-    Pkg.add("Plots")
-
-    using Plots
 end
 
 function average_values(ops, rho_t)
@@ -151,21 +60,186 @@ function population_ops(A::AtomicArrays.FourLevelAtomCollection)
     return P_m1, P_0, P_p1
 end
 
-av_J = average_values(J_ops, rho_t)
-P_m1, P_0, P_p1 = population_ops(coll)
+function scattered_field(r::Vector, A::AtomicArrays.FourLevelAtomCollection,
+    sigmas_m::Matrix, k_field::Number=2π)
+    M, N = size(A.gammas)
+    C = 3.0/4.0 * A.gammas
+    return sum(C[m,n] * sigmas_m[m,n] * 
+               GreenTensor(r-A.atoms[n].position, k_field) *
+               A.polarizations[m,:,n] for m = 1:M, n = 1:N)
+end
 
-# We'll define arrays to store population vs time: shape = (length(t), N)
-pop_e_minus = zeros(length(t), N)
-pop_e_0     = zeros(length(t), N)
-pop_e_plus  = zeros(length(t), N)
 
-for n in 1:N
-    for (k, ρ) in enumerate(rho_t)
-        pop_e_minus[k, n] = real(tr(P_m1[n] * ρ))
-        pop_e_0[k, n]     = real(tr(P_0[n] * ρ))
-        pop_e_plus[k, n]  = real(tr(P_p1[n] * ρ))
+begin
+    # Build the collection
+    positions = [
+        [0.0, 0.0, 0.0],
+        [10.2, 0.0, 0.0],
+        [20.4, 0.0, 0.0],
+        [30.6, 0.0, 0.0]
+    ]
+    N = length(positions)
+
+    pols = AtomicArrays.polarizations_spherical(N)
+    gam = [AtomicArrays.gammas(0.15)[m] for m=1:3, j=1:N]
+    # deltas = [0.0 for i = 1:N]
+    deltas = [0.1, 0.0, 0.0, 0.0]
+
+    coll = AtomicArrays.FourLevelAtomCollection(positions;
+        deltas = deltas,
+        polarizations = pols,
+        gammas = gam
+    )
+
+    # Define a plane wave field in +y direction:
+    amplitude = 0.1
+    k_mod = 2π
+    # angle_k = [0.0, π/2]  # => +y direction
+    angle_k = [0.0, 0.0]  # => +z direction
+    polarisation = [1.0, 0.0im, 1.0im]
+    pos_0 = [0.0, 0.0, 0.0]
+
+    B_z = 0.1
+
+
+    field = AtomicArrays.field.EMField(amplitude, k_mod, angle_k, polarisation; position_0=pos_0)
+    external_drive = AtomicArrays.field.rabi(field, AtomicArrays.field.plane, coll)
+end
+
+begin
+    # Build the Hamiltonian and jump operators
+    H = AtomicArrays.fourlevel_quantum.Hamiltonian(coll; magnetic_field=B_z,
+                    external_drive=external_drive,
+                    dipole_dipole=true)
+
+    Γ, J_ops = AtomicArrays.fourlevel_quantum.JumpOperators(coll; flatten=true)
+end
+
+begin
+    # time evolution
+    b = AtomicArrays.fourlevel_quantum.basis(coll)
+    # initial state => all ground
+    ψ0 = basisstate(b, [AtomicArrays.fourlevel_quantum.idx_g for i = 1:N])
+    ρ0 = dm(ψ0)
+    tspan = [0.0:0.1:400.0;]
+    t, rho_t = timeevolution.master_h(tspan, ψ0, H, J_ops; rates=Γ)
+end
+
+begin
+    state0 = AtomicArrays.fourlevel_meanfield.ProductState(length(coll.atoms))
+    tout, state_mf_t = AtomicArrays.fourlevel_meanfield.timeevolution(tspan, coll, external_drive, B_z, state0);
+end
+
+begin
+    Pkg.activate(temp=true)   # or PATH_ENV if you want to reuse your local approach
+    Pkg.add("Plots")
+
+    using Plots
+end
+
+
+begin
+    av_J = average_values(J_ops, rho_t)
+    P_m1, P_0, P_p1 = population_ops(coll)
+
+    # We'll define arrays to store population vs time: shape = (length(t), N)
+    pop_e_minus = zeros(length(t), N)
+    pop_e_0     = zeros(length(t), N)
+    pop_e_plus  = zeros(length(t), N)
+
+    for n in 1:N
+        for (k, ρ) in enumerate(rho_t)
+            pop_e_minus[k, n] = real(tr(P_m1[n] * ρ))
+            pop_e_0[k, n]     = real(tr(P_0[n] * ρ))
+            pop_e_plus[k, n]  = real(tr(P_p1[n] * ρ))
+        end
     end
 end
+
+begin
+    # Define grid parameters
+    x_range = -1:0.01:1
+    y_range = -1:0.01:1
+    z0 = 0.1
+
+    # sigmas_m = reshape(av_J[end,:], (3,4))
+    sigmas_m, _ = AtomicArrays.fourlevel_meanfield.sigma_matrices(state_mf_t, length(tspan))
+
+    # Preallocate arrays to store field projections
+    nx, ny = length(x_range), length(y_range)
+    Re_field_x = zeros(nx, ny)
+    Abs_field_x = zeros(nx, ny)
+    Re_field_y = zeros(nx, ny)
+    Abs_field_y = zeros(nx, ny)
+    Re_field_z = zeros(nx, ny)
+    Abs_field_z = zeros(nx, ny)
+
+    # Extract atom positions (assumed stored in coll.atoms)
+    atom_x = [atom.position[1] for atom in coll.atoms]
+    atom_y = [atom.position[2] for atom in coll.atoms]
+
+    # Loop over the grid to compute the scattered field at each point
+    for (i, x) in enumerate(x_range)
+        for (j, y) in enumerate(y_range)
+            r = [x, y, z0]
+            # Compute the scattered field at r using the provided function.
+            # It is assumed that sigmas_m is defined.
+            E = scattered_field(r, coll, sigmas_m)
+            # Store the real part and absolute value for each Cartesian component.
+            Re_field_x[i, j] = real(E[1])
+            Abs_field_x[i, j] = abs(E[1])
+            Re_field_y[i, j] = real(E[2])
+            Abs_field_y[i, j] = abs(E[2])
+            Re_field_z[i, j] = real(E[3])
+            Abs_field_z[i, j] = abs(E[3])
+        end
+    end
+end
+
+let
+    # Create contour plots for each field component.
+    p1 = contourf(x_range, y_range, Re_field_x',
+        title = "Re(Eₓ)", xlabel = "x", ylabel = "y", linewidth=0)
+    scatter!(p1, atom_x, atom_y, marker = (:circle, 3, :white), label = "Atoms")
+    p2 = contourf(x_range, y_range, Abs_field_x',
+        title = "Abs(Eₓ)", xlabel = "x", ylabel = "y", linewidth=0)
+    scatter!(p2, atom_x, atom_y, marker = (:circle, 3, :white), label = "Atoms")
+    p3 = contourf(x_range, y_range, Re_field_y',
+        title = "Re(Eᵧ)", xlabel = "x", ylabel = "y", linewidth=0)
+    scatter!(p3, atom_x, atom_y, marker = (:circle, 3, :white), label = "Atoms")
+    p4 = contourf(x_range, y_range, Abs_field_y',
+        title = "Abs(Eᵧ)", xlabel = "x", ylabel = "y", linewidth=0)
+    scatter!(p4, atom_x, atom_y, marker = (:circle, 3, :white), label = "Atoms")
+    p5 = contourf(x_range, y_range, Re_field_z',
+        title = "Re(E_z)", xlabel = "x", ylabel = "y", linewidth=0)
+    scatter!(p5, atom_x, atom_y, marker = (:circle, 3, :white), label = "Atoms")
+    p6 = contourf(x_range, y_range, Abs_field_z',
+        title = "Abs(E_z)", xlabel = "x", ylabel = "y", linewidth=0)
+    scatter!(p6, atom_x, atom_y, marker = (:circle, 3, :white), label = "Atoms")
+
+    # Combine the plots into a 3x2 layout.
+    plot(p1, p2, p3, p4, p5, p6, layout = (3, 2), size=(900,1100))
+end
+
+
+begin
+    pop_e_minus_mf = reshape(vcat(real(
+        [AtomicArrays.fourlevel_meanfield.mapexpect(
+        AtomicArrays.fourlevel_meanfield.smm, state_mf_t, n, 1, 1
+    ) for n in 1:N])...
+    ), (length(tspan),N))
+    pop_e_0_mf = reshape(vcat(real(
+        [AtomicArrays.fourlevel_meanfield.mapexpect(
+        AtomicArrays.fourlevel_meanfield.smm, state_mf_t, n, 2, 2
+    ) for n in 1:N])...
+    ), (length(tspan),N))
+    pop_e_plus_mf = reshape(vcat(real(
+        [AtomicArrays.fourlevel_meanfield.mapexpect(
+        AtomicArrays.fourlevel_meanfield.smm, state_mf_t, n, 3, 3
+    ) for n in 1:N])...
+    ), (length(tspan),N))
+end
+
 
 let
     p_pop = plot(layout=(1, 3), size=(1000, 300),
@@ -174,13 +248,19 @@ let
     # sublevel m=-1
     plot!(p_pop[1], t, pop_e_minus, lab=PermutedDimsArray(hcat(["Atom $n" for n=1:N]), (2,1)), 
         title="m = -1", linewidth=2)
+    plot!(p_pop[1], t, pop_e_minus_mf, lab=PermutedDimsArray(hcat(["Atom mf $n" for n=1:N]), (2,1)), 
+        title="m = -1", linewidth=2)
 
     # sublevel m=0
     plot!(p_pop[2], t, pop_e_0, lab=PermutedDimsArray(hcat(["Atom $n" for n=1:N]), (2,1)),
         title="m = 0", linewidth=2)
+    plot!(p_pop[2], t, pop_e_0_mf, lab=PermutedDimsArray(hcat(["Atom mf $n" for n=1:N]), (2,1)),
+        title="m = 0", linewidth=2)
 
     # sublevel m=+1
     plot!(p_pop[3], t, pop_e_plus, lab=PermutedDimsArray(hcat(["Atom $n" for n=1:N]), (2,1)),
+        title="m = +1", linewidth=2)
+    plot!(p_pop[3], t, pop_e_plus_mf, lab=PermutedDimsArray(hcat(["Atom mf $n" for n=1:N]), (2,1)),
         title="m = +1", linewidth=2)
 
     display(p_pop)  # show the figure

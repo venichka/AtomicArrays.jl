@@ -223,6 +223,10 @@ function scattered_field(r::Vector, S::SpinCollection,
                S.polarizations[i]
                for i=1:n)
 end
+function scattered_field(r::Vector, A::FourLevelAtomCollection,
+                         sigmas_m::Matrix, k_field::Number=2π)
+
+end
 
 
 """
