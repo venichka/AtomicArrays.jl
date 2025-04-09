@@ -74,16 +74,16 @@ begin
     # Build the collection
     positions = [
         [0.0, 0.0, 0.0],
-        [10.2, 0.0, 0.0],
-        [20.4, 0.0, 0.0],
-        [30.6, 0.0, 0.0]
+        [0.2, 0.0, 0.0],
+        [0.4, 0.0, 0.0],
+        [0.6, 0.0, 0.0]
     ]
     N = length(positions)
 
     pols = AtomicArrays.polarizations_spherical(N)
     gam = [AtomicArrays.gammas(0.15)[m] for m=1:3, j=1:N]
     # deltas = [0.0 for i = 1:N]
-    deltas = [0.1, 0.0, 0.0, 0.0]
+    deltas = [0.1, 0.2, 0.0, 0.0]
 
     coll = AtomicArrays.FourLevelAtomCollection(positions;
         deltas = deltas,
@@ -102,8 +102,9 @@ begin
     B_z = 0.1
 
 
-    field = AtomicArrays.field.EMField(amplitude, k_mod, angle_k, polarisation; position_0=pos_0)
-    external_drive = AtomicArrays.field.rabi(field, AtomicArrays.field.plane, coll)
+    field = AtomicArrays.field.EMField(amplitude, k_mod, angle_k, polarisation; position_0=pos_0, waist_radius=0.3)
+    field_func = AtomicArrays.field.gauss
+    external_drive = AtomicArrays.field.rabi(field, field_func, coll)
 end
 
 begin
@@ -184,7 +185,8 @@ begin
             r = [x, y, z0]
             # Compute the scattered field at r using the provided function.
             # It is assumed that sigmas_m is defined.
-            E = scattered_field(r, coll, sigmas_m)
+            E = AtomicArrays.field.scattered_field(r, coll, sigmas_m)
+            E = AtomicArrays.field.total_field(field_func, r, field, coll, sigmas_m)
             # Store the real part and absolute value for each Cartesian component.
             Re_field_x[i, j] = real(E[1])
             Abs_field_x[i, j] = abs(E[1])
@@ -221,6 +223,19 @@ let
     plot(p1, p2, p3, p4, p5, p6, layout = (3, 2), size=(900,1100))
 end
 
+AtomicArrays.field.transmission_reg(field, field_func, coll,
+                                    sigmas_m; samples=100)[1]
+AtomicArrays.field.transmission_plane(field, field_func, coll,
+                                    sigmas_m; samples=100)[1]
+
+AtomicArrays.field.scattered_field([0.1, 0.1, 0.1], coll, sigmas_m)       # for FourLevelAtomCollection
+test = AtomicArrays.field.scattered_field([[0.1, 0.1, 0.1],[0.2,0.2,0.2]], coll, sigmas_m)       # for FourLevelAtomCollection
+AtomicArrays.field.scattered_field([[0.1, 0.1, 0.1],[0.2,0.2,0.2]], Ref(coll), Ref(sigmas_m))       # for FourLevelAtomCollection
+AtomicArrays.field.total_field.(Ref(field_func), [[0.1, 0.1, 0.1],[0.2,0.2,0.2]], Ref(field), Ref(coll), Ref(sigmas_m))
+test_0 = AtomicArrays.field.total_field(field_func, [[0.1, 0.1, 0.1],[0.2,0.2,0.2]], field, coll, sigmas_m)
+
+sum(AtomicArrays.field.intensity.(test))
+norm.(test).^2
 
 begin
     pop_e_minus_mf = reshape(vcat(real(

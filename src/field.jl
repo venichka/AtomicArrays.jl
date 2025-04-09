@@ -24,25 +24,32 @@ A class representing an EM field impinging the system.
 * `waist_radius=0`: Waist radius for Gaussian beam
 """
 struct EMField{T1<:Number,T2<:Number,
-               V1<:Vector,V2<:Vector,V3<:Vector,
+               V1<:Vector,V2<:Vector,V3<:Vector,V4<:Vector,
                T3<:Number} <: Field
     amplitude::T1
     module_k::T2
     angle_k::V1
     polarisation::V2
     position_0::V3
+    k_vector::V4
     waist_radius::T3
 end
-EMField(amplitude::Number, module_k::Number, angle_k::Vector,
-        polarisation::Vector; position_0::Vector=[0.0,0.0,0.0],
-        waist_radius::Number=0.0) = EMField(amplitude,
-                                            module_k, angle_k,
-                                            vec_rotate(polarisation,
-                                                       angle_k[1],
-                                                       angle_k[2]) ./ 
-                                            LinearAlgebra.norm(polarisation),
-                                            position_0,
-                                            waist_radius)
+function EMField(amplitude::Number, module_k::Number,
+                 angle_k::AbstractVector{<:Real},
+                 polarisation::AbstractVector{<:Number};
+                 position_0::AbstractVector{<:Real} = [0.0, 0.0, 0.0],
+                 waist_radius::Number = 0.1)
+                               
+    normed_pol = polarisation ./ LinearAlgebra.norm(polarisation)
+    rotated_pol = vec_rotate(normed_pol, angle_k[1], angle_k[2])
+    k_vec = module_k * [sin(angle_k[1]),
+                        cos(angle_k[1]) * sin(angle_k[2]),
+                        cos(angle_k[1]) * cos(angle_k[2])]
+                               
+    return EMField(amplitude, module_k, angle_k, rotated_pol,
+                   position_0, k_vec, waist_radius)
+end
+
 
 
 """
@@ -76,32 +83,39 @@ end
 field.gauss(r_vec::Vector, E::Field)
 Impinging field propagating along Z axis at angle φ i Y-Z plane and angle
 θ in X-Z plane.
+
+Compute a Gaussian beam field at `r_vec` from field parameters `E`.
+Assumes propagation at angles θ and φ, centered at `position_0`.
 # Arguments
 * `r_vec`: vector {x,y,z} at which we calculate the field
 * `E`: EM field impinging the system
 """
 function gauss(r_vec::Vector, E::Field)
-    # TODO: fix the dependence on φ
     x, y, z = r_vec
     x0, y0, z0 = E.position_0
     A = E.amplitude
     K = E.module_k
     θ, φ = E.angle_k
     w0 = E.waist_radius
-    # reference frame of the beam
-    x1, y1, z1 = [(x-x0)*cos(θ)-(z-z0)*cos(φ)*sin(θ), #- (y-y0)*sin(θ)*sin(φ),
-                  (y-y0)*cos(φ) - (z-z0)*sin(φ),
-                  (x-x0)*sin(θ) + (z-z0)*cos(θ)]
-    polarisation = E.polarisation
-    #k_vec = K.*[sin(θ), cos(θ)*sin(φ), cos(θ)*cos(φ)]
-    zR = 0.5*K*w0^2
-    wz1 = w0*sqrt(1.0+(z1/zR)^2)
-    invRz1 = z1 / (z1^2 + zR^2)
-    phiz1 = atan(z1/zR)
-    return (A*w0/wz1*exp(1.0im*K*z1)*
-        exp(-1.0im*phiz1)*exp(-(x1^2 + y1^2)/wz1^2)*
-        exp(1.0im*K*(x1^2 + y1^2)/2.0*invRz1)).*polarisation
+    polarization = E.polarisation
+
+    # Local beam coordinates
+    x1 = (x - x0) * cos(θ) - (z - z0) * cos(φ) * sin(θ)
+    y1 = (y - y0) * cos(φ) - (z - z0) * sin(φ)
+    z1 = (x - x0) * sin(θ) + (z - z0) * cos(θ)
+
+    zR = 0.5 * K * w0^2
+    wz = w0 * sqrt(1 + (z1 / zR)^2)
+    Rz_inv = z1 / (z1^2 + zR^2)
+    phi_z = atan(z1 / zR)
+
+    envelope = A * (w0 / wz) * exp(-((x1^2 + y1^2) / wz^2))
+    phase = exp(1im * K * z1) * exp(-1im * phi_z) * exp(1im * K * (x1^2 + y1^2) / 2 * Rz_inv)
+
+    return envelope * phase .* polarization
 end
+gauss(r_vecs::Vector{<:AbstractVector}, E::Field) = gauss.(r_vecs, Ref(E))
+
 
 
 """
@@ -116,14 +130,17 @@ Impinging field propagating along k_vec
 * `polarisation`: unit vector {d_x, d_y, d_z}, field polarisation
 """
 function plane(r_vec::Vector, E::Field)
-    pos_vec = E.position_0
     A = E.amplitude
-    K = E.module_k
-    θ, φ = E.angle_k
-    k_vec = K*[sin(θ), cos(θ)*sin(φ), cos(θ)*cos(φ)]
-    polarisation = E.polarisation
-    return A*exp(1.0im*k_vec'*(r_vec-pos_vec)).*polarisation
+    pos0 = E.position_0
+    pol = E.polarisation
+
+    k_vec = E.k_vector
+    phase = exp(1im * LinearAlgebra.dot(k_vec, r_vec .- pos0))
+
+    return A * phase .* pol
 end
+plane(r_vecs::Vector{<:AbstractVector}, E::Field) = plane.(r_vecs, Ref(E))
+
 
 
 """
@@ -141,7 +158,7 @@ Rabi frequency of atoms interacting with the incident field:
 function rabi(E_vec::Vector, polarisation::Vector)
     μ = polarisation
     n = length(μ)
-    Ω_R = [(conj(μ[i]')*conj(E_vec[i]))/sqrt(sum(μ[i][j]*conj(μ[i][j]) for j=1:3)) for i=1:n]
+    Ω_R = [(conj(μ[i]')*conj(E_vec[i]))/LinearAlgebra.norm(μ[i]) for i=1:n]
     return Ω_R
 end
 function rabi(E_vec::Vector, atom_coll::SpinCollection)
@@ -176,67 +193,54 @@ function rabi(E::Field, field_function::Function,
 end
 
 
+function intensity(E::AbstractVector)
+    return real(E' * E)
+end
+
+
 """
-field.scattered_field(r::Vector, S::SpinCollection, sigmam::Vector)
-Function computes the total field at position r:
+    field.scattered_field(r::Vector, S::SpinCollection, σ, k_field::Real=2π)
+Compute the field scattered by a collection of atoms/spins at point `r`.
+Supports both `SpinCollection` and `FourLevelAtomCollection`.
 # Arguments
 * `r`: Position [r_x, r_y, r_z]
 * `S`: Spin collection.
-* `sigmam`: Vector of steady-state values of σⱼ for each spin
+* `σ`: Vector of steady-state values of σⱼ for each spin
+* `k_field`: 2π
 # Output
 * `E_{sc}`: Vector of total field at r
 """
-function scattered_field(r::Vector, S::SpinCollection,
-                         sigmam::Vector, k_field::Number=2π)
-    # TODO: k in Green's tensor and in scattered field
-    n = length(S.gammas)
-    C = 3.0/4.0.*S.gammas./LinearAlgebra.norm.(S.polarizations).^2   # (k_0/4.0/pi) * 3.0*pi/k_0.*γ_e./(norm.(μ).^2)
-                                    # took into account factor k/(4π) in Green Tensor
-    return sum(C[i]*sigmam[i]*GreenTensor(r-S.spins[i].position, k_field)*
-               S.polarizations[i]
-               for i=1:n)
+function scattered_field(r::AbstractVector, collection, σ, k_field::Real=2π)
+    _scattered_field(r, collection, σ, k_field)
 end
-function scattered_field(r::Vector, A::AtomicArrays.FourLevelAtomCollection,
-    sigmas_m::Matrix, k_field::Number=2π)
-    M, N = size(A.gammas)
-    C = 3.0/4.0 * A.gammas
-    return sum(C[m,n] * sigmas_m[m,n] * 
-               GreenTensor(r-A.atoms[n].position, k_field) *
-               A.polarizations[m,:,n] for m = 1:M, n = 1:N)
-end
+scattered_field(r_vecs::Vector{<:AbstractVector},
+                collection, σ, k::Real=2π) = scattered_field.(
+                r_vecs, Ref(collection),Ref(σ), Ref(k))
 
 
 """
 field.total_field(inc_wave_function::Function, r::Vector,
-                         E::Field, S::SpinCollection, sigmam::Vector)
-Function computes the total field at position r:
+                         E::Field, S::SpinCollection, σ::Vector)
+Compute the total field at point `r` as a sum of incident and scattered fields.
 # Arguments
 * `inc_wave_function`: Function that computes incident wave at point r.
 * `r`: Position [r_x, r_y, r_z]
 * `E`: Incident EM field parameters.
 * `S`: Spin collection.
-* `sigmam`: Vector of steady-state values of σⱼ for each spin
+* `σ`: Vector of steady-state values of σⱼ for each spin or Matrix for 4level
 # Output
 * `E_{tot}`: Vector of total field at r
 """
-function total_field(inc_wave_function::Function, r::Vector, E::Field,
-                     S::SpinCollection, sigmam::Vector,
-                     k_field::Number=2π)
-    # TODO: check the constants and dimensions
-    n = length(S.gammas)
+function total_field(inc_wave_function::Function, r::AbstractVector,
+                     E::Field, collection, σ, k::Real=2π)
     E_inc = inc_wave_function(r, E)
-    C = 3.0/4.0.*S.gammas./LinearAlgebra.norm.(S.polarizations).^2   # (k_0/4.0/pi) * 3.0*pi/k_0.*γ_e./(norm.(μ).^2)
-                                    # took into account factor k/(4π) in Green Tensor
-    return E_inc + sum(C[i]* sigmam[i]*GreenTensor(r-S.spins[i].position, k_field)*
-                   S.polarizations[i]
-                   for i=1:n)
+    E_scat = scattered_field(r, collection, σ, k)
+    return E_inc + E_scat
 end
-function total_field(inc_wave_function::Function, r::Vector, E::Field,
-                     A::FourLevelAtomCollection, sigmas_m::Matrix,
-                     k_field::Number=2π)
-    E_inc = inc_wave_function(r, E)
-    return E_inc + scattered_field(r, A, sigmas_m, k_field)
-end
+total_field(inc_wave_function::Function, r_vecs::Vector{<:AbstractVector},
+            E::Field, collection, σ, k::Real=2π) = total_field.(
+                Ref(inc_wave_function), r_vecs, Ref(E), Ref(collection),
+                Ref(σ), Ref(k))
 
 
 """
@@ -258,11 +262,10 @@ function forward_scattering(r_lim::Number, E::Field,
                             sigmam::Vector)
     # TODO: k in Green's tensor and in scattered field
     K = E.module_k
-    θ, φ = E.angle_k
     E_0 = E.amplitude
-    k_vec = K*[sin(θ), cos(θ)*sin(φ), cos(θ)*cos(φ)]
+    k_vec = E.k_vector
     polar = E.polarisation
-    r = r_lim*[sin(θ), cos(θ)*sin(φ), cos(θ)*cos(φ)]
+    r = k_vec / K * r_lim
     E_sc = scattered_field(r, S, sigmam, K)
     return (4π/K * imag(r_lim/E_0/exp(im*k_vec'*(r-E.position_0)) .* polar'*E_sc))[1]
 end
@@ -288,9 +291,9 @@ function forward_scattering_1particle(r_lim::Number, E::Field,
     K = E.module_k
     θ, φ = E.angle_k
     E_0 = E.amplitude
-    k_vec = K*[sin(θ), cos(θ)*sin(φ), cos(θ)*cos(φ)]
+    k_vec = E.k_vector
     polar = E.polarisation
-    r = r_lim*[sin(θ), cos(θ)*sin(φ), cos(θ)*cos(φ)]
+    r = k_vec / K * r_lim
     # atom
     r_0 = [0., 0., 0.]  # coordinates of an atom
     Ω_R = rabi([plane(r_0, E)], [polar])[1]
@@ -380,40 +383,47 @@ T = Σ|E_{tot} * (E_{in})'^*|^2 / Σ|E_{in} * (E_{in})'^*|^2
 * `samples = 100`: Number of points on a hemisphere
 * `zlim = 10`: length of a radius-vector
 * `angle = [π, π]`: rudiment angle, just for backward compatibility
-# Output
-* `T`: transmission, a real number
-* `r`: a vector of points on a hemisphere
+
+Returns:
+* `T`: transmission coefficient (real number)
+* `r`: sampling points on the hemisphere (Vector of 3D positions)
 """
 function transmission_reg(E::Field, inc_wave_function::Function,
-                      S::SpinCollection, sigmam::Vector;
-                      samples::Int=100, zlim::Real=1000.0,angle::Vector=[π,π])
-    # TODO: debug, check the correctness of transmission computation
-    L = (E.angle_k[1] >= π/2) ? S.spins[1].position[3] : S.spins[end].position[3]
+                          S::Union{SpinCollection, FourLevelAtomCollection}, sigmam::AbstractArray;
+                          samples::Int=50, zlim::Real=1000.0, angle::Vector=[π, π])
+
+    # Extract front/back position L depending on wave vector
+    L = get_L_position(E, S)
     zlim = (E.angle_k[1] >= π/2) ? -zlim : zlim
-    itr = range(0,samples-1,samples)
-    golden_ratio = 0.5*(1.0 + sqrt(5.0))
-    θ = acos.(1.0 .- (itr .+ 0.5)./samples)
-    φ = 2π * itr ./ golden_ratio
-    E_in2 = 0.0
+
+    # Generate hemisphere points via Fibonacci method
+    θ, φ = fibonacci_angles(samples)
+    r = [zlim * [sin(θ[j]) * cos(φ[j]),
+                 sin(θ[j]) * sin(φ[j]),
+                 cos(θ[j]) + L / zlim] for j in 1:samples]
+
+    # Precompute incoming and total fields
+    E_in = inc_wave_function(r, E)  # vector{vector}
+    total_fields = total_field(inc_wave_function, r, E, S, sigmam)
+
+    # Compute normalization
+    E_in2 = sum(intensity.(E_in))
+
+    # Compute transmission
     E_out2 = 0.0
-    r = Vector{Vector{Float64}}(undef, samples)
-    for j in 1:samples 
-        r_j = zlim * [sin(θ[j])*cos(φ[j]),
-                      sin(θ[j])*sin(φ[j]),
-                      cos(θ[j]) + L/zlim]
-        r[j] = r_j
-        E_in_j = inc_wave_function(r_j, E)
-        E_in2 += E_in_j'*E_in_j
+    for j in 1:samples
+        E_in_j = E_in[j]
+        tf_j = total_fields[j]
         for k in 1:samples
-            r_k = zlim * [sin(θ[k])*cos(φ[k]),
-                          sin(θ[k])*sin(φ[k]),
-                          cos(θ[k]) + L/zlim]
-            E_in_k = inc_wave_function(r_k, E)
-            E_out2 += abs(conj(E_in_j')*
-            (total_field(inc_wave_function, r_j, E, S, sigmam)'*total_field(inc_wave_function, r_k, E, S, sigmam))*conj(E_in_k))
+            tf_k = total_fields[k]
+            E_in_k = E_in[k]
+            E_out2 += abs(conj(E_in_j') * (tf_j' * tf_k) * conj(E_in_k))
         end
     end
+
     E_in4 = abs(E_in2)^2
+    return [E_out2 / E_in4, r]
+        # alternative way
     # for j in 1:samples
     #     r_j = zlim * [sin(θ[j])*cos(φ[j]),
     #                   sin(θ[j])*sin(φ[j]),
@@ -424,9 +434,7 @@ function transmission_reg(E::Field, inc_wave_function::Function,
     #     total_field(inc_wave_function,r_j, E, S, sigmam)*total_field(inc_wave_function,r_j, E, S, sigmam)'*E_in)
     #     E_in2 += abs(E_in'*E_in)^2
     # end
-    return  [E_out2/E_in4, r]
 end
-
 
 """
 field.transmission_plane(E::Field, inc_wave_function::Function,
@@ -437,53 +445,92 @@ T = Σ|E_{tot} * (E_{in})'^*|^2 / Σ|E_{in} * (E_{in})'^*|^2
 # Arguments
 * `E`: Incident EM field parameters.
 * `inc_wave_function`: Function that computes incident wave at point r.
-* `S`: Spin collection.
-* `sigmam`: Vector of steady-state values of σⱼ for each spin
+* `S`: Spin collection or FourLevelAtomCollection.
+* `sigmam`: Vector of steady-state values of σⱼ for each spin, or Matrix
 # Optional arguments
 * `samples = 100`: Number of points on a plane
 * `zlim = 40`: length of a radius-vector
 * `size = [5, 5]`: width (x) and height (y) of the plate
 # Output
-* `T`: transmission, a real number
-* `r`: a vector of points on a plane
+* `T`: transmission coefficient (real number)
+* `r`: sampling points on the plane (Vector of 3D positions)
 """
 function transmission_plane(E::Field, inc_wave_function::Function,
-                      S::SpinCollection, sigmam::Vector;
-                      samples::Int=100, zlim::Real=50.0,size::Vector=[5.0,5.0])
-    L = (E.angle_k[1] >= π/2) ? S.spins[1].position[3] : S.spins[end].position[3]
+                            S::Union{SpinCollection, FourLevelAtomCollection}, sigmam::AbstractArray;
+                            samples::Int=100, zlim::Real=50.0, size::Vector=[5.0, 5.0])
+
+    # Front or back depending on propagation direction
+    L = get_L_position(E, S)
     zlim = (E.angle_k[1] >= π/2) ? -zlim : zlim
-    E_in2 = 0.0
+
+    # Generate uniformly spaced square grid of points
+    r = [ [
+        -0.5 * size[1] + size[1] * (j - 1) / (samples - 1),
+        -0.5 * size[2] + size[2] * (j - 1) / (samples - 1),
+        zlim + L
+    ] for j in 1:samples ]
+
+    # Precompute incoming fields and total fields
+    E_in = inc_wave_function(r, E)  # vector{vector}
+    total_fields = total_field(inc_wave_function, r, E, S, sigmam)
+
+    # Normalize factor (denominator)
+    E_in2 = sum(intensity.(E_in))
+
+    # Transmission numerator
     E_out2 = 0.0
-    r = Vector{Vector{Float64}}(undef, samples)
-    for j in 1:samples 
-        r_j = [-0.5*size[1] + size[1]*(j-1)/(samples-1),
-               -0.5*size[2] + size[2]*(j-1)/(samples-1),
-               zlim + L]
-        r[j] = r_j
-        E_in_j = inc_wave_function(r_j, E)
-        E_in2 += E_in_j'*E_in_j
+    for j in 1:samples
+        E_in_j = E_in[j]
+        tf_j = total_fields[j]
         for k in 1:samples
-            r_k = [-0.5*size[1] + size[1]*(k-1)/(samples-1),
-                   -0.5*size[2] + size[2]*(k-1)/(samples-1),
-                   zlim + L]
-            E_in_k = inc_wave_function(r_k, E)
-            E_out2 += abs(conj(E_in_j')*
-            (total_field(inc_wave_function, r_j, E, S, sigmam)'*total_field(inc_wave_function, r_k, E, S, sigmam))*conj(E_in_k))
+            tf_k = total_fields[k]
+            E_in_k = E_in[k]
+            E_out2 += abs(conj(E_in_j') * (tf_j' * tf_k) * conj(E_in_k))
         end
     end
+
     E_in4 = abs(E_in2)^2
-    # for j in 1:samples, k in 1:samples
-    #     r_j = [-0.5*size[1] + size[1]*(j-1)/(samples-1),
-    #            -0.5*size[2] + size[2]*(j-1)/(samples-1),
-    #            zlim + L]
-    #     r[j] = r_j
-    #     E_in = inc_wave_function(r_j, E)
-    #     E_out2 += abs(conj(E_in')*
-    #     (total_field(inc_wave_function,r_j, E, S, sigmam)'*total_field(inc_wave_function,r_j, E, S, sigmam))*conj(E_in))
-    #     E_in2 += abs(E_in'*E_in)^2
-    # end
-    return  [E_out2/E_in4, r]
+    return [E_out2 / E_in4, r]
 end
 
 
+# ---------- Helper functions ----------
+
+# Extract front or back Z-position from collection
+function get_L_position(E::Field, S::SpinCollection)
+    return (E.angle_k[1] >= π/2) ? S.spins[1].position[3] : S.spins[end].position[3]
 end
+
+function get_L_position(E::Field, S::FourLevelAtomCollection)
+    return (E.angle_k[1] >= π/2) ? S.atoms[1].position[3] : S.atoms[end].position[3]
+end
+
+# Generate θ, φ using Fibonacci method
+function fibonacci_angles(samples::Int)
+    golden_ratio = 0.5 * (1.0 + sqrt(5.0))
+    itr = range(0, samples - 1, length=samples)
+    θ = acos.(1.0 .- (itr .+ 0.5) ./ samples)
+    φ = 2π .* itr ./ golden_ratio
+    return θ, φ
+end
+
+function _scattered_field(r::AbstractVector, S::SpinCollection,
+                          sigmam::Vector, k::Real)
+    n = length(S.spins)
+    C = 3.0/4.0 .* S.gammas ./ LinearAlgebra.norm.(S.polarizations).^2
+    return sum(C[i] * sigmam[i] *
+               GreenTensor(r .- S.spins[i].position, k) *
+               S.polarizations[i] for i in 1:n)
+end
+
+function _scattered_field(r::AbstractVector, A::FourLevelAtomCollection,
+                          sigmas_m::AbstractMatrix, k::Real)
+    M, N = size(A.gammas)
+    C = 3.0/4.0 .* A.gammas
+    return sum(C[m, n] * sigmas_m[m, n] *
+               GreenTensor(r .- A.atoms[n].position, k) *
+               A.polarizations[m, :, n] for m in 1:M, n in 1:N)
+end
+
+
+end  # module field
