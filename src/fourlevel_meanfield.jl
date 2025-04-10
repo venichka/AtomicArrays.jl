@@ -1,7 +1,6 @@
 module fourlevel_meanfield
 
 #TODO: add functions creating the state from density matrix and as a blochstate
-#TODO: add steady-state function
 #TODO: add timeevolution, expectation values for Complex ProductState
 
 export ProductState, ProductState_Complex
@@ -189,7 +188,7 @@ function timeevolution(T, A::FourLevelAtomCollection, OmR::Array{Complex{Float64
                     dym[m,n] -= 0.5*(Gamma_r[n,n,m,m1]*ym[m1,n] +
                                     Gamma_i[n,n,m,m1]*xm[m1,n])
                     if m1 == m
-                        x_bar = xmm[m1,m,n] - 1 + sum([xmm[i,i,n] for i=1:3])
+                        x_bar = xmm[m1,m,n]-1+xmm[1,1,n]+xmm[2,2,n]+xmm[3,3,n]
                     else
                         x_bar = xmm[m1,m,n]
                     end
@@ -313,7 +312,7 @@ function f(du, u, p, t)
                 dym[m,n] -= 0.5*(Gamma_r[n,n,m,m1]*ym[m1,n] +
                                  Gamma_i[n,n,m,m1]*xm[m1,n])
                 if m1 == m
-                    x_bar = xmm[m1,m,n] - 1 + sum([xmm[i,i,n] for i=1:3])
+                    x_bar = xmm[m1,m,n]-1+xmm[1,1,n]+xmm[2,2,n]+xmm[3,3,n]
                 else
                     x_bar = xmm[m1,m,n]
                 end
@@ -423,7 +422,7 @@ function f_sym(du, u, p, t)
             dsm[m,n] = ((-1im*w[m,n] - 0.5*Gamma[n,n,m,m])*sm[m,n])
             for m1 = 1:3
                 if m1 == m
-                    s_bar = smm[m1,m,n] - 1 + sum([smm[i,i,n] for i=1:3])
+                    s_bar = smm[m1,m,n]-1+smm[1,1,n]+smm[2,2,n]+smm[3,3,n]
                 else
                     s_bar = smm[m1,m,n]
                 end
@@ -467,5 +466,39 @@ function f_sym(du, u, p, t)
     end
 end
 
+"""
+    fourlevel_meanfield.steady_state(A::FourLevelAtomCollection,
+                    OmR::Array{Complex{Float64}, 2}, B_z::Real, state0[; fout])
+MPC steady state.
+# Arguments
+* `A`: FourLevelAtomCollection describing the system.
+* `Om_R`: Rabi constant
+* `B_z`: g_J μ_B B, external uniform magnetic field
+* `state0`: Initial MPCState.
+* `fout` (optional): Function with signature fout(t, state) that is called
+    whenever output should be generated.
+"""
+function steady_state(A::FourLevelAtomCollection,
+                Om_R::Array{Complex{Float64}, 2}, B_z::Real,
+                state0::ProductState; 
+                fout=nothing,
+                alg::SteadyStateDiffEq.SteadyStateDiffEqAlgorithm=SteadyStateDiffEq.DynamicSS(OrdinaryDiffEq.VCABM()),
+                kwargs...)
+    N = length(A.atoms)
+    @assert N==state0.N
+    Omega = interaction.OmegaTensor_4level(A)
+    Gamma = interaction.GammaTensor_4level(A)
+    w = [A.atoms[n].delta + B_z*m for m = -1:1, n = 1:N]
+    p = (w, Om_R, Omega, Gamma)
+
+    if isa(fout, Nothing)
+        fout_ = (t, state) -> deepcopy(state)
+    else
+        fout_ = fout
+    end
+
+    return AtomicArrays.meanfield.steady_state(f, state0, p, fout_;
+                                               alg=alg, kwargs...)
+end
 
 end # module

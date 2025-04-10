@@ -124,18 +124,23 @@ begin
     ρ0 = dm(ψ0)
     tspan = [0.0:0.1:400.0;]
     t, rho_t = timeevolution.master_h(tspan, ψ0, H, J_ops; rates=Γ)
+    # @btime timeevolution.master_h(tspan, ψ0, H, J_ops; rates=Γ)
 end
 
 begin
     state0 = AtomicArrays.fourlevel_meanfield.ProductState(length(coll.atoms))
     tout, state_mf_t = AtomicArrays.fourlevel_meanfield.timeevolution(tspan, coll, external_drive, B_z, state0);
+    @btime AtomicArrays.fourlevel_meanfield.steady_state(coll,
+            external_drive, B_z, state0)
+    # @btime AtomicArrays.fourlevel_meanfield.timeevolution(tspan, coll, external_drive, B_z, state0);
 end
 
 begin
     Pkg.activate(temp=true)   # or PATH_ENV if you want to reuse your local approach
     Pkg.add("Plots")
+    Pkg.add("BenchmarkTools")
 
-    using Plots
+    using Plots, BenchmarkTools
 end
 
 
@@ -236,6 +241,20 @@ test_0 = AtomicArrays.field.total_field(field_func, [[0.1, 0.1, 0.1],[0.2,0.2,0.
 
 sum(AtomicArrays.field.intensity.(test))
 norm.(test).^2
+
+# More efficient mapexpect (no allocation)
+function mapexpect(op, states::Vector{<:AtomicArrays.fourlevel_meanfield.ProductState}, num::Int, m::Int)
+    return @views [op(s)[m, num] for s in states]
+end
+function mapexpect(op, states::Vector{<:ProductState}, num::Int, m1::Int, m2::Int)
+    return @views [op(s)[m1, m2, num] for s in states]
+end
+function mapexpect(op, states::Vector{<:ProductState}, num::Int)
+    return @views [op(s)[:, num] for s in states]
+end
+
+@benchmark AtomicArrays.fourlevel_meanfield.mapexpect(AtomicArrays.fourlevel_meanfield.sm, state_mf_t, 1, 1)
+@benchmark mapexpect(AtomicArrays.fourlevel_meanfield.sm, state_mf_t, 1, 1)
 
 begin
     pop_e_minus_mf = reshape(vcat(real(
