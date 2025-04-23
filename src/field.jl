@@ -194,7 +194,7 @@ end
 
 
 function intensity(E::AbstractVector)
-    return real(E' * E)
+    return 0.5*real(E' * E)
 end
 
 
@@ -407,7 +407,7 @@ function transmission_reg(E::Field, inc_wave_function::Function,
     total_fields = total_field(inc_wave_function, r, E, S, sigmam)
 
     # Compute normalization
-    E_in2 = sum(intensity.(E_in))
+    E_in2 = sum(2*intensity.(E_in))
 
     # Compute transmission
     E_out2 = 0.0
@@ -475,7 +475,7 @@ function transmission_plane(E::Field, inc_wave_function::Function,
     total_fields = total_field(inc_wave_function, r, E, S, sigmam)
 
     # Normalize factor (denominator)
-    E_in2 = sum(intensity.(E_in))
+    E_in2 = sum(2*intensity.(E_in))
 
     # Transmission numerator
     E_out2 = 0.0
@@ -493,6 +493,129 @@ function transmission_plane(E::Field, inc_wave_function::Function,
     return [E_out2 / E_in4, r]
 end
 
+"""
+    field.transmission_reflection(E::EMField,
+                            collection::Union{SpinCollection, FourLevelAtomCollection},
+                            σ::AbstractArray;
+                            beam::Symbol = :plane,
+                            surface::Symbol = :hemisphere,
+                            polarization = nothing,
+                            samples::Int = 50,
+                            zlim::Real = 1000.0,
+                            size::Vector = [5.0, 5.0],
+                            return_positions::Bool = false)
+
+Computes the transmission and reflection coefficients by integrating the output power 
+over a specified surface in forward and backward directions.
+
+# Arguments
+- `E::EMField`: Incident electromagnetic field (plane wave or Gaussian beam).
+- `collection`: Atomic collection (e.g. `FourLevelAtomCollection`) describing positions, detunings, and polarizations.
+- `σ`: Array of expectation values for the system (e.g., `σm` or `σmm`).
+
+# Keyword Arguments
+- `beam::Symbol`: `:plane` or `:gauss`. Defines the beam profile used for the incident field.
+- `surface::Symbol`: `:hemisphere` or `:plane`. Defines the surface over which power is integrated.
+- `polarization`: Optional polarization vector (default is taken from `E.polarisation`).
+- `samples::Int`: Number of sample points for integration (angular or grid).
+- `zlim::Real`: Distance from the atomic plane to the integration surface.
+- `size::Vector`: `[x, y]` dimensions for the planar integration surface (only used when `surface = :plane`).
+- `return_positions::Bool`: If true, also returns vectors of sampled points `r_fwd` and `r_bwd`.
+
+# Returns
+- `T`: Transmission coefficient.
+- `R`: Reflection coefficient.
+- Optionally: `r_fwd`, `r_bwd` if `return_positions=true`.
+
+# Example
+```julia
+T, R = transmission_reflection(E, coll, σ; beam=:gauss, surface=:hemisphere, samples=100)
+T, R, rf, rb = transmission_reflection(E, coll, σ; return_positions=true)
+"""
+function transmission_reflection(E::AtomicArrays.field.EMField,
+                         collection::Union{SpinCollection, FourLevelAtomCollection},
+                         σ::AbstractArray;
+                         beam::Symbol      = :plane,
+                         surface::Symbol   = :hemisphere,
+                         polarization      = nothing,
+                         samples::Int      = 50,
+                         zlim::Real        = 1_000.0,
+                         size::Vector      = [5.0,5.0],
+                         return_positions::Bool = false)
+                                
+    # ---------- 1.  Set helpers ----------
+    inc_wave = beam === :plane ? plane : gauss
+    pol      = polarization === nothing ? E.polarisation :
+                polarization ./ LinearAlgebra.norm(polarization) # ensure unit‑norm
+    k̂        = E.k_vector / LinearAlgebra.norm(E.k_vector) # propagation direction
+                                
+    # analytic incident intensity  (c = ε₀ = 1)
+    intensity(v) = abs2( LinearAlgebra.dot(pol, v) )/2
+    I_inc = abs2(E.amplitude)/2
+    P_inc = (π*E.waist_radius^2/2) * I_inc
+                                
+    # ---------- 2.  Make integration grids ----------
+    if surface === :hemisphere
+        θ, φ = fibonacci_angles(samples)
+        # forward (+k̂) & backward (−k̂) hemispheres
+        r_fwd =  Vector{Vector{Float64}}(undef, samples)
+        r_bwd =  Vector{Vector{Float64}}(undef, samples)
+        for j in eachindex(θ)
+            rot_vec = [sin(θ[j])*cos(φ[j]),
+                       sin(θ[j])*sin(φ[j]),
+                       cos(θ[j])]
+            # build orthonormal basis with k̂ as new +z
+            # fast Gram–Schmidt
+            zax = k̂
+            xax = abs(zax[3]) < 0.9 ? LinearAlgebra.normalize(
+                                        LinearAlgebra.cross(zax,[0,0,1])) :
+                                      LinearAlgebra.normalize(
+                                        LinearAlgebra.cross(zax,[0,1,0]))
+            yax = LinearAlgebra.cross(zax,xax)
+            R   = hcat(xax,yax,zax)          # 3×3 rotation matrix
+            dir = R*rot_vec
+            r_fwd[j] =  zlim* dir           # along +k̂
+            r_bwd[j] = -zlim* dir           # along −k̂
+        end
+        ΔΩ = 2π/samples                     # equal‑area weight
+        area_factor = zlim^2                # R² term in ∫ I dΩ
+    else  # :plane
+        # square grid centred on optical axis
+        x = range(-0.5*size[1], stop=0.5*size[1], length=samples)
+        y = range(-0.5*size[2], stop=0.5*size[2], length=samples)
+        r_fwd = [ [xx,yy, zlim] for yy in y, xx in x ] |> vec
+        r_bwd = [ [xx,yy,-zlim] for yy in y, xx in x ] |> vec
+        dA   = (size[1]/(samples-1))*(size[2]/(samples-1))
+    end
+                                
+    # ---------- 3.  Pre‑compute fields ----------
+    # (broadcasting works because inc_wave / total_field already have dot‑methods)
+    E_in_fwd  = inc_wave(r_fwd, E)
+    E_sc_fwd = scattered_field(r_fwd, collection, σ)
+    E_tot_fwd = E_in_fwd .+ E_sc_fwd
+    E_in_bwd  = inc_wave(r_bwd, E)
+    E_sc_bwd = scattered_field(r_bwd, collection, σ)
+    E_tot_bwd = E_in_bwd .+ E_sc_bwd
+                                
+    # ---------- 4.  Integrate power ----------
+    if surface === :hemisphere
+        # projected |E|² sum  (∝ intensity); pol·E selects co‑polarised power
+        P_fwd = ΔΩ*area_factor * sum( intensity.(E_tot_fwd) )
+        P_bwd = ΔΩ*area_factor * sum( intensity.(E_sc_bwd) )
+        P_inc = beam === :plane ? I_inc*2*pi*zlim^2 : P_inc # analytic = I_inc*π zlim²
+        # P_inc = ΔΩ*area_factor * sum( intensity.(E_in_fwd) )
+    else  # plane
+        P_fwd = dA * sum( intensity.(E_tot_fwd) )
+        P_bwd = dA * sum( intensity.(E_sc_bwd) )
+        P_inc = I_inc * size[1] * size[2]*2  # analytic = I_inc*size[1]*size[2]
+        # P_inc = dA * sum( intensity.(E_in_fwd) )
+    end
+                                
+    # ---------- 5.  Coefficients ----------
+    T = P_fwd / P_inc
+    R = P_bwd / P_inc
+    return return_positions ? (T, R, r_fwd, r_bwd) : (T, R)
+end
 
 # ---------- Helper functions ----------
 

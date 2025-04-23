@@ -8,6 +8,7 @@ export ProductState, ProductState_Complex
 import ..integrate_base
 
 import OrdinaryDiffEq, DiffEqCallbacks, SteadyStateDiffEq
+import NonlinearSolve, SparseDiffTools, ForwardDiff, LinearSolve, SparseArrays, ADTypes, SparseConnectivityTracer
 import Sundials
 
 using ..interaction, ..AtomicArrays
@@ -499,6 +500,51 @@ function steady_state(A::FourLevelAtomCollection,
 
     return AtomicArrays.meanfield.steady_state(f, state0, p, fout_;
                                                alg=alg, kwargs...)
+end
+
+# Cache for Jacobian sparsity patterns
+const jacobian_sparsity_cache = Dict{Tuple{Int, Int}, SparseArrays.SparseMatrixCSC{Float64, Int}}()
+
+"""
+    fourlevel_meanfield.steady_state_nonlinear(A::FourLevelAtomCollection, 
+                 Om_R::Matrix{ComplexF64},
+                 B_z::Real, state0::ProductState; kwargs...)
+
+Solves the meanfield steady-state problem using NonlinearSolve and a sparse Jacobian with caching.
+"""
+function steady_state_nonlinear(A::FourLevelAtomCollection, 
+    Om_R::Array{ComplexF64,2}, B_z::Real, state0::ProductState; 
+    abstol=1e-8, reltol=1e-8, maxiters=100)
+    
+    N = state0.N
+    Omega = interaction.OmegaTensor_4level(A)
+    Gamma = interaction.GammaTensor_4level(A)
+    w = [A.atoms[n].delta + B_z * m for m = -1:1, n = 1:N]
+    p = (w, Om_R, Omega, Gamma)
+
+    function f_steady!(du, u, p)
+        f(du, u, p, 0.0)
+    end
+
+    function jacobian!(J, u, p)
+        SparseDiffTools.forwarddiff_color_jacobian!(J, (du, u) -> f_steady!(du, u, p), u)
+    end
+
+    u0 = copy(state0.data)
+    cache_key = (length(u0), length(p))
+    sparsity = get!(jacobian_sparsity_cache, cache_key) do
+        detector = SparseConnectivityTracer.TracerSparsityDetector()
+        ADTypes.jacobian_sparsity((du, u) -> f_steady!(du, u, p), u0, u0, detector)
+    end
+
+    nlfun = NonlinearSolve.NonlinearFunction(f_steady!, jac=jacobian!, jac_prototype=sparsity)
+    prob = NonlinearSolve.NonlinearProblem(nlfun, u0, p)
+    linsolve = LinearSolve.KrylovJL_GMRES()
+    sol = NonlinearSolve.solve(prob, NonlinearSolve.NewtonRaphson(linsolve=linsolve); 
+                abstol, reltol, maxiters)
+
+    state0.data .= sol.u
+    return state0
 end
 
 end # module

@@ -232,6 +232,21 @@ AtomicArrays.field.transmission_reg(field, field_func, coll,
                                     sigmas_m; samples=100)[1]
 AtomicArrays.field.transmission_plane(field, field_func, coll,
                                     sigmas_m; samples=100)[1]
+AtomicArrays.field.transmission_reflection(field, coll, sigmas_m; 
+                                   beam=:gauss,
+                                   surface=:hemisphere,
+                                   samples=400,
+                                   zlim=300.0)
+
+ss_state = AtomicArrays.fourlevel_meanfield.steady_state_nonlinear(coll,
+    external_drive, B_z, state0; 
+    abstol=1e-8, reltol=1e-8, maxiters=100)
+
+@btime AtomicArrays.fourlevel_meanfield.steady_state_nonlinear(coll,
+    external_drive, B_z, state0; 
+    abstol=1e-8, reltol=1e-8, maxiters=100)
+
+state_mf_t[end]
 
 AtomicArrays.field.scattered_field([0.1, 0.1, 0.1], coll, sigmas_m)       # for FourLevelAtomCollection
 test = AtomicArrays.field.scattered_field([[0.1, 0.1, 0.1],[0.2,0.2,0.2]], coll, sigmas_m)       # for FourLevelAtomCollection

@@ -1,24 +1,28 @@
 name = "AtomicArrays"
 uuid = "b789d723-f61d-49f3-8919-75e0f1958cbe"
 authors = ["Nikita <nefedkin@phystech.edu>"]
-version = "0.3.0"
+version = "0.3.1"
 
 [deps]
+ADTypes = "47edcb42-4c32-4615-8424-f2b9edc5f35b"
 ClausenFunctions = "1cc96f36-ef02-40ef-a648-5e2c13df3076"
 Combinatorics = "861a8166-3701-5b0c-9a16-15d98fcdc6aa"
 DiffEqCallbacks = "459566f4-90b8-5000-8ac3-15dfb0a30def"
 DifferentialEquations = "0c46a032-eb83-5123-abaf-570d42b7fbaa"
 Documenter = "e30172f5-a6a5-5a46-863b-614d45cd2de4"
+ForwardDiff = "f6369f11-7733-5829-9624-2563aa707210"
 LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
+LinearSolve = "7ed4a6bd-45f5-4d41-b270-4a48e9bafcae"
+NonlinearSolve = "8913a72c-1f9b-4ce2-8d82-65094dcecaec"
 Optim = "429524aa-4258-5aef-a3af-852621145aeb"
 OrdinaryDiffEq = "1dea7af3-3e70-54e6-95c3-0bf5283fa5ed"
 QuantumOptics = "6e0679c1-51ea-5a7c-ac74-d61b76210b0c"
 QuantumOpticsBase = "4f57444f-1401-5e15-980d-4471b28d5678"
 Revise = "295af30f-e4ad-537b-8983-00126c2a3abe"
+SparseArrays = "2f01184e-e22b-5df5-ae63-d93ebab69eaf"
+SparseConnectivityTracer = "9f842d2f-2579-4b1d-911e-f412cf18a3f5"
+SparseDiffTools = "47a9eef4-7e08-11e9-0b38-333d64bd3804"
 SteadyStateDiffEq = "9672c7b4-1e72-59bd-8a11-6ac3964bc41f"
 Sundials = "c3572dad-4567-51f8-b174-8c6c989267f4"
 Symbolics = "0c5d862f-8b57-4792-8d23-62f2024744c7"
 Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
-
-[compat]
-Revise = "3.7.2"
