@@ -607,8 +607,8 @@ function transmission_reflection(E::AtomicArrays.field.EMField,
     else  # plane
         P_fwd = dA * sum( intensity.(E_tot_fwd) )
         P_bwd = dA * sum( intensity.(E_sc_bwd) )
-        P_inc = I_inc * size[1] * size[2]*2  # analytic = I_inc*size[1]*size[2]
-        # P_inc = dA * sum( intensity.(E_in_fwd) )
+        # P_inc = I_inc * size[1] * size[2]*2  # analytic = I_inc*size[1]*size[2]
+        P_inc = dA * sum( intensity.(E_in_fwd) )
     end
                                 
     # ---------- 5.  Coefficients ----------
