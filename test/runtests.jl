@@ -1,6 +1,7 @@
 names = [
     "test_fourlevel_quantum.jl",
     "test_meanfield_with_field.jl",
+    "test_fourlevel_reducedbasis.jl",
 ]
 
 detected_tests = filter(

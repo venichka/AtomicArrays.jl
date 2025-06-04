@@ -32,6 +32,7 @@ include("misc.jl")
 include("fourlevel_quantum.jl")
 include("fourlevel_misc.jl")
 include("fourlevel_meanfield.jl")
+include("fourlevel_reducedbasis.jl")
 
 using .field
 using .interaction
@@ -46,5 +47,6 @@ using .misc
 using .fourlevel_quantum
 using .fourlevel_misc
 using .fourlevel_meanfield
+using .fourlevel_reducedbasis
 
 end # module
