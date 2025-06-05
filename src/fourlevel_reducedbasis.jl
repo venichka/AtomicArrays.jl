@@ -103,16 +103,19 @@ end
 reducedsigmaminus(b,j,m) = dagger(reducedsigmaplus(b,j,m))
 reducedsigmapm(b,j,m)      = reducedsigmaplus(b,j,m) * reducedsigmaminus(b,j,m)
 
-function reducedsigmaplussigmaminus(b,i,m; j=i, mp=m)
+function reducedsigmaplussigmaminus(b::ReducedAtomBasis,
+                                    i::Int, m::Int; j::Int=i, mp::Int=m)
     op = SparseOperator(b)
-    for s1 in b.indexMapper
-        ((j,mp) in s1.first) || continue
-        for s2 in b.indexMapper
-            ((i,m) in s2.first) || continue
-            op.data[s2.second, s1.second] = 1.0
+    # helper predicates that work with the Excitation = Pair(site,m) objects
+    has_exc(s, site, lev) = any(e -> first(e)==site && last(e)==lev, s)
+    for ket in b.indexMapper                              # column index
+        has_exc(ket.first, j, mp) || continue             # |…j,mp…⟩   (lower)
+        for bra in b.indexMapper                          # row index
+            has_exc(bra.first, i, m) || continue          # ⟨…i,m…|    (raise)
+            op.data[bra.second, ket.second] = 1.0
         end
     end
-    op
+    return op
 end
 
 # ────────────────────────────────────────────────────────────────────────────
